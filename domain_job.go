@@ -1,6 +1,10 @@
 package main
 
-import "time"
+import (
+	"time"
+
+	"github.com/google/uuid"
+)
 
 type JobStatus string
 
@@ -28,4 +32,17 @@ type Job struct {
 	UserID      string      `json:"user_id"`
 	CreatedAt   time.Time   `json:"created_at"`
 	UpdatedAt   time.Time   `json:"updated_at"`
+}
+
+func NewJob(title, description string, priority JobPriority, userID string) Job {
+	return Job{
+		ID:          uuid.New().String(),
+		Title:       title,
+		Description: description,
+		Priority:    priority,
+		Status:      JobStatusPending,
+		UserID:      userID,
+		CreatedAt:   time.Now(),
+		UpdatedAt:   time.Now(),
+	}
 }

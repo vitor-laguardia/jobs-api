@@ -7,7 +7,7 @@ import (
 
 type InMemoryJobs struct{}
 
-func (i *InMemoryJobs) GetById(jobId string) string {
+func (i *InMemoryJobs) GetByID(jobId string) string {
 	return "123"
 }
 
