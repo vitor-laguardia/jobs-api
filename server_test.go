@@ -8,52 +8,71 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 )
 
 type StubJobService struct {
-	jobs map[string]string
+	jobs map[string]*Job
 }
 
-func (s *StubJobService) GetByID(jobID string) string {
-	job := s.jobs[jobID]
-	return job
+func (s *StubJobService) GetByID(jobID string) *Job {
+	job, ok := s.jobs[jobID]
+
+	if !ok {
+		return nil
+	}
+
+	jobCopy := *job
+	return &jobCopy
 }
 
 func TestGETJob(t *testing.T) {
-	jobs := &StubJobService{
-		map[string]string{
-			"1": "job1", "2": "job2"},
+	now := time.Now().UTC().Truncate(time.Second)
+	jobStub := &StubJobService{
+		map[string]*Job{
+			"1": &Job{
+				ID:          uuid.New().String(),
+				Title:       "GET job title",
+				Description: "lorem ipsum",
+				Status:      JobStatusPending,
+				Priority:    JobPriority(2),
+				UserID:      "1",
+				CreatedAt:   now,
+				UpdatedAt:   now,
+			},
+		},
 	}
-	server := &JobServer{job: jobs}
+	server := &JobServer{job: jobStub}
 
-	t.Run("return job 1 information", func(t *testing.T) {
+	t.Run("get job stub", func(t *testing.T) {
 		req := newGETJobHTTPRequest("1")
 		res := httptest.NewRecorder()
 
+		req.SetPathValue("id", "1")
 		server.ServeHTTP(res, req)
 
+		var got Job
+
+		want := *jobStub.jobs["1"]
 		assertStatus(t, res.Code, http.StatusOK)
-		assertResponseBody(t, res.Body.String(), "job1")
-	})
-
-	t.Run("return job 2 information", func(t *testing.T) {
-		req := newGETJobHTTPRequest("2")
-		res := httptest.NewRecorder()
-
-		server.ServeHTTP(res, req)
-
-		assertStatus(t, res.Code, http.StatusOK)
-		assertResponseBody(t, res.Body.String(), "job2")
+		assertJSONDecode(t, res.Body, &got)
+		assertJob(t, got, want)
 	})
 
 	t.Run("returns 404 on missing jobs", func(t *testing.T) {
 		req := newGETJobHTTPRequest("3")
 		res := httptest.NewRecorder()
 
+		req.SetPathValue("id", "3")
 		server.ServeHTTP(res, req)
+
+		var got ErrorResponse
+
 		assertStatus(t, res.Code, http.StatusNotFound)
+		assertJSONDecode(t, res.Body, &got)
+		assertString(t, got.Message, MsgJobNotFound, "wrong Message in error response")
 	})
 
 }
@@ -221,6 +240,20 @@ func assertPostJobResponseBody(t *testing.T, got Job, want CreateJobRequest) {
 	}
 	if got.CreatedAt.IsZero() {
 		t.Errorf("response body is wrong, CreatedAt should not be zero")
+	}
+}
+
+func assertJob(t *testing.T, got Job, want Job) {
+	t.Helper()
+	assertString(t, got.ID, want.ID, "wrong id in response body")
+	assertString(t, got.Title, want.Title, "wrong title in response body")
+	assertString(t, got.Description, want.Description, "wrong description in response body")
+	assertString(t, got.UserID, want.UserID, "wrong userID in response body")
+	if got.Priority != want.Priority {
+		t.Errorf("wrong Priority in response body: got %d, want %d", got.Priority, want.Priority)
+	}
+	if got.Status != want.Status {
+		t.Errorf("wrong Status in response body: got %q, want %q", got.Status, want.Status)
 	}
 }
 

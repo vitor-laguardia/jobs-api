@@ -4,15 +4,15 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"strings"
 )
 
 const (
 	MsgInvalidReqPayload = "invalid request payload"
+	MsgJobNotFound       = "job not found"
 )
 
 type JobService interface {
-	GetByID(id string) string
+	GetByID(id string) *Job
 }
 
 type JobServer struct {
@@ -24,8 +24,8 @@ type Validator interface {
 }
 
 type ErrorResponse struct {
-	Message string            `json:"message"`          // Resumo legível do erro
-	Errors  map[string]string `json:"errors,omitempty"` // Detalhes por campo (se houver)
+	Message string            `json:"message"`
+	Errors  map[string]string `json:"errors,omitempty"`
 }
 
 func (j *JobServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -60,14 +60,15 @@ func (j *JobServer) postJob(w http.ResponseWriter, r *http.Request) {
 }
 
 func (j *JobServer) getJob(w http.ResponseWriter, r *http.Request) {
-	jobId := strings.TrimPrefix(r.URL.Path, "/jobs/")
+	jobId := r.PathValue("id")
 	job := j.job.GetByID(jobId)
-
-	if job == "" {
+	if job == nil {
 		w.WriteHeader(http.StatusNotFound)
+		errRes := ErrorResponse{Message: MsgJobNotFound}
+		json.NewEncoder(w).Encode(errRes)
+		return
 	}
-
-	fmt.Fprint(w, job)
+	json.NewEncoder(w).Encode(job)
 }
 
 func decodeValid[T Validator](r *http.Request) (T, map[string]string, error) {

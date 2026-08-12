@@ -7,8 +7,8 @@ import (
 
 type InMemoryJobs struct{}
 
-func (i *InMemoryJobs) GetByID(jobId string) string {
-	return "123"
+func (i *InMemoryJobs) GetByID(jobId string) *Job {
+	return nil
 }
 
 func main() {
