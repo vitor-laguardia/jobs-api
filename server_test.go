@@ -3,10 +3,12 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -28,6 +30,11 @@ func (s *StubJobService) GetByID(jobID string) *Job {
 	return &jobCopy
 }
 
+type errReader struct{}
+
+func (errReader) Read(p []byte) (n int, err error) {
+	return 0, errors.New("simulated network read failure")
+}
 func TestGETJob(t *testing.T) {
 	now := time.Now().UTC().Truncate(time.Second)
 	jobStub := &StubJobService{
@@ -54,9 +61,10 @@ func TestGETJob(t *testing.T) {
 		server.ServeHTTP(res, req)
 
 		var got Job
-
 		want := *jobStub.jobs["1"]
+
 		assertStatus(t, res.Code, http.StatusOK)
+		assertHeader(t, res.Header().Get("content-type"), "application/json")
 		assertJSONDecode(t, res.Body, &got)
 		assertJob(t, got, want)
 	})
@@ -71,6 +79,7 @@ func TestGETJob(t *testing.T) {
 		var got ErrorResponse
 
 		assertStatus(t, res.Code, http.StatusNotFound)
+		assertHeader(t, res.Header().Get("content-type"), "application/json")
 		assertJSONDecode(t, res.Body, &got)
 		assertString(t, got.Message, MsgJobNotFound, "wrong Message in error response")
 	})
@@ -96,7 +105,7 @@ func TestPostJob(t *testing.T) {
 		var got Job
 
 		assertStatus(t, res.Code, http.StatusCreated)
-		assertContentType(t, res.Header().Get("content-type"), "application/json")
+		assertHeader(t, res.Header().Get("content-type"), "application/json")
 		assertJSONDecode(t, res.Body, &got)
 		assertPostJobResponseBody(t, got, payload)
 	})
@@ -143,7 +152,8 @@ func TestPostJob(t *testing.T) {
 			wantStatus:  http.StatusUnprocessableEntity,
 			wantMessage: MsgPriorityOutOfRange,
 			wantKey:     KeyPriority,
-		}, {
+		},
+		{
 			name: "priority out of range",
 			payload: CreateJobRequest{
 				Title:       "POST Job",
@@ -166,6 +176,7 @@ func TestPostJob(t *testing.T) {
 
 			var got ErrorResponse
 			assertStatus(t, res.Code, tt.wantStatus)
+			assertHeader(t, res.Header().Get("content-type"), "application/json")
 			assertJSONDecode(t, res.Body, &got)
 			assertString(t, got.Message, MsgInvalidReqPayload, "wrong message in error response")
 			for key, errMsg := range got.Errors {
@@ -174,6 +185,143 @@ func TestPostJob(t *testing.T) {
 			}
 		})
 	}
+
+}
+
+func TestPayload(t *testing.T) {
+	jobs := &StubJobService{nil}
+	server := &JobServer{job: jobs}
+
+	tableTests := []struct {
+		name        string
+		body        string
+		needSprintf bool
+		formatValue any
+		wantStatus  int
+		wantMessage string
+	}{
+		{
+			name:        "request with empty body",
+			body:        ``,
+			needSprintf: false,
+			formatValue: 0,
+			wantStatus:  http.StatusBadRequest,
+			wantMessage: MsgEmptyBody,
+		},
+		{
+			name:        "request with unclosed json",
+			body:        `{"title": "testing"`,
+			needSprintf: false,
+			formatValue: 0,
+			wantStatus:  http.StatusBadRequest,
+			wantMessage: MsgUnexpectedEOF,
+		},
+		{
+			name:        "request with syntax error",
+			body:        `{"title": testing`,
+			needSprintf: true,
+			formatValue: 12,
+			wantStatus:  http.StatusBadRequest,
+			wantMessage: MsgSyntaxErr,
+		},
+		{
+			name:        "request with unknown json field",
+			body:        `{"title": "testing", "badField": 156}`,
+			needSprintf: true,
+			formatValue: `"badField"`,
+			wantStatus:  http.StatusBadRequest,
+			wantMessage: MsgUnknownField,
+		},
+		{
+			name:        "request with more then one body",
+			body:        `{"title": "testing", "userId": "2"}{"otherBody": "hack"}`,
+			needSprintf: false,
+			formatValue: 0,
+			wantStatus:  http.StatusBadRequest,
+			wantMessage: MsgMultipleReqBody,
+		},
+	}
+
+	for _, tt := range tableTests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodPost, "/jobs", strings.NewReader(tt.body))
+			res := httptest.NewRecorder()
+
+			server.ServeHTTP(res, req)
+
+			var got ErrorResponse
+			assertJSONDecode(t, res.Body, &got)
+
+			wantMessage := func() string {
+				if tt.needSprintf {
+					return fmt.Sprintf(tt.wantMessage, tt.formatValue)
+				}
+				return tt.wantMessage
+			}
+
+			assertStatus(t, res.Code, tt.wantStatus)
+			assertString(t, got.Message, wantMessage(), "wrong error message in response body")
+		})
+	}
+
+	t.Run("request with invalid field type", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodPost, "/jobs", strings.NewReader(`{"title": 123}`))
+		res := httptest.NewRecorder()
+
+		server.ServeHTTP(res, req)
+
+		var got ErrorResponse
+		want := fmt.Sprintf(MsgWrongFieldType, "title", 13)
+
+		assertJSONDecode(t, res.Body, &got)
+		assertStatus(t, res.Code, http.StatusBadRequest)
+		assertString(t, got.Message, want, "wrong error message in response body")
+	})
+
+	t.Run("request body with 1MB", func(t *testing.T) {
+		largePadding := strings.Repeat("a", MaxBodyBytes+1)
+		largeJSON := fmt.Sprintf(`{"title": "%s"}`, largePadding)
+		limitExceededBody := strings.NewReader(largeJSON)
+		req := httptest.NewRequest(http.MethodPost, "/jobs", limitExceededBody)
+		res := httptest.NewRecorder()
+
+		server.ServeHTTP(res, req)
+
+		var got ErrorResponse
+		want := fmt.Sprintf(MsgMaxBodyBytes, MaxBodyBytes)
+
+		assertJSONDecode(t, res.Body, &got)
+		assertStatus(t, res.Code, http.StatusRequestEntityTooLarge)
+		assertString(t, got.Message, want, "wrong error message in response body")
+	})
+
+	t.Run("request header without application/json", func(t *testing.T) {
+		rawTextBody := "id=123&status=active"
+		req := httptest.NewRequest(http.MethodPost, "/jobs", strings.NewReader(rawTextBody))
+		req.Header.Set("content-type", " text/plain")
+		res := httptest.NewRecorder()
+
+		server.ServeHTTP(res, req)
+
+		var got ErrorResponse
+		assertJSONDecode(t, res.Body, &got)
+		assertStatus(t, res.Code, http.StatusUnsupportedMediaType)
+		assertString(t, got.Message, MsgUnexpectedContentType, "wrong error message in response body")
+
+	})
+
+	t.Run("default case - generic read error", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodPost, "/jobs", errReader{})
+		res := httptest.NewRecorder()
+
+		server.ServeHTTP(res, req)
+
+		var got ErrorResponse
+
+		assertJSONDecode(t, res.Body, &got)
+		assertStatus(t, res.Code, http.StatusInternalServerError)
+		assertString(t, got.Message, MsgJSONError, "wrong error message in response body")
+	})
 }
 
 func newGETJobHTTPRequest(id string) *http.Request {
@@ -194,7 +342,7 @@ func newPOSTJobHTTPRequest(t *testing.T, payload CreateJobRequest) *http.Request
 	return req
 }
 
-func assertContentType(t *testing.T, got, want string) {
+func assertHeader(t *testing.T, got, want string) {
 	t.Helper()
 	if got != want {
 		t.Errorf("Wrong content type format. Want: %q, got: %q", want, got)
