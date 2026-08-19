@@ -15,11 +15,11 @@ import (
 	"github.com/google/uuid"
 )
 
-type StubJobService struct {
+type StubJobRepository struct {
 	jobs map[string]*Job
 }
 
-func (s *StubJobService) GetByID(jobID string) *Job {
+func (s *StubJobRepository) GetByID(jobID string) *Job {
 	job, ok := s.jobs[jobID]
 
 	if !ok {
@@ -30,14 +30,19 @@ func (s *StubJobService) GetByID(jobID string) *Job {
 	return &jobCopy
 }
 
+func (s *StubJobRepository) Create(job *Job) {
+	s.jobs[job.ID] = job
+}
+
 type errReader struct{}
 
 func (errReader) Read(p []byte) (n int, err error) {
 	return 0, errors.New("simulated network read failure")
 }
+
 func TestGETJob(t *testing.T) {
 	now := time.Now().UTC().Truncate(time.Second)
-	jobStub := &StubJobService{
+	jobStub := &StubJobRepository{
 		map[string]*Job{
 			"1": &Job{
 				ID:          uuid.New().String(),
@@ -51,7 +56,7 @@ func TestGETJob(t *testing.T) {
 			},
 		},
 	}
-	server := &JobServer{job: jobStub}
+	server := &JobServer{repo: jobStub}
 
 	t.Run("get job stub", func(t *testing.T) {
 		req := newGETJobHTTPRequest("1")
@@ -87,8 +92,8 @@ func TestGETJob(t *testing.T) {
 }
 
 func TestPostJob(t *testing.T) {
-	jobs := &StubJobService{nil}
-	server := &JobServer{job: jobs}
+	stubRepo := &StubJobRepository{make(map[string]*Job)}
+	server := &JobServer{repo: stubRepo}
 
 	t.Run("it returns the new job as JSON", func(t *testing.T) {
 		payload := CreateJobRequest{
@@ -189,8 +194,8 @@ func TestPostJob(t *testing.T) {
 }
 
 func TestPayload(t *testing.T) {
-	jobs := &StubJobService{nil}
-	server := &JobServer{job: jobs}
+	stubRepo := &StubJobRepository{make(map[string]*Job)}
+	server := &JobServer{repo: stubRepo}
 
 	tableTests := []struct {
 		name        string

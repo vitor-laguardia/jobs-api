@@ -25,12 +25,13 @@ const (
 	MaxBodyBytes             = 1048576
 )
 
-type JobService interface {
+type Repository interface {
 	GetByID(id string) *Job
+	Create(job *Job)
 }
 
 type JobServer struct {
-	job JobService
+	repo Repository
 }
 
 type Validator interface {
@@ -64,6 +65,7 @@ func (j *JobServer) postJob(w http.ResponseWriter, r *http.Request) {
 	}
 
 	newJob := NewJob(jobReq.Title, jobReq.Description, JobPriority(jobReq.Priority), jobReq.UserID)
+	j.repo.Create(&newJob)
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(newJob)
@@ -71,7 +73,7 @@ func (j *JobServer) postJob(w http.ResponseWriter, r *http.Request) {
 
 func (j *JobServer) getJob(w http.ResponseWriter, r *http.Request) {
 	jobId := r.PathValue("id")
-	job := j.job.GetByID(jobId)
+	job := j.repo.GetByID(jobId)
 
 	w.Header().Set("Content-Type", "application/json")
 
