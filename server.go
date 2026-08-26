@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"time"
 )
 
 const (
@@ -28,6 +29,7 @@ const (
 type Repository interface {
 	GetByID(id string) *Job
 	Create(job *Job)
+	Update(job *Job) *Job
 }
 
 type JobServer struct {
@@ -51,6 +53,9 @@ func (j *JobServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	case http.MethodPost:
 		j.postJob(w, r)
+
+	case http.MethodPut:
+		j.updateJob(w, r)
 	}
 }
 
@@ -84,6 +89,66 @@ func (j *JobServer) getJob(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	json.NewEncoder(w).Encode(job)
+}
+
+func (j *JobServer) updateJob(w http.ResponseWriter, r *http.Request) {
+	jobID := r.PathValue("id")
+
+	jobInput, errResp := decodeValid[UpdateJobRequest](w, r)
+	fmt.Printf("\n errResp: %v\n", errResp)
+
+	if errResp != nil {
+		w.WriteHeader(errResp.Status)
+		w.Header().Set("content-type", "application/json")
+		json.NewEncoder(w).Encode(errResp)
+		return
+	}
+
+	job := j.repo.GetByID(jobID)
+
+	//	if job == nil {
+	//		return a
+	//	}
+
+	if jobInput.Title != "" {
+		job.Title = jobInput.Title
+	}
+	if jobInput.Description != "" {
+		job.Description = jobInput.Description
+	}
+
+	if jobInput.Priority != 0 {
+		job.Priority = JobPriority(jobInput.Priority)
+	}
+
+	if jobInput.Status != "" {
+		if !job.CanTransitionTo(JobStatus(jobInput.Status)) {
+			w.WriteHeader(http.StatusUnprocessableEntity)
+			errResp := ErrorResponse{
+				Status:  http.StatusUnprocessableEntity,
+				Message: "invalid status transition",
+			}
+
+			json.NewEncoder(w).Encode(errResp)
+			return
+		}
+
+		job.Status = JobStatus(jobInput.Status)
+
+	}
+
+	job.UpdatedAt = time.Now()
+
+	updatedJob := j.repo.Update(job)
+
+	if updatedJob == nil {
+		w.WriteHeader(http.StatusUnprocessableEntity)
+		w.Header().Set("content-type", "application/json")
+		//json.NewEncoder(w).Encode(errResp)
+		return
+
+	}
+	json.NewEncoder(w).Encode(updatedJob)
 }
 
 func decodeValid[T Validator](w http.ResponseWriter, r *http.Request) (T, *ErrorResponse) {

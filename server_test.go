@@ -31,6 +31,14 @@ func (s *StubJobRepository) Create(job *Job) {
 	s.jobs[job.ID] = job
 }
 
+func (s *StubJobRepository) Update(job *Job) *Job {
+	if _, exists := s.jobs[job.ID]; !exists {
+		return nil
+	}
+	s.jobs[job.ID] = job
+	return job
+}
+
 type errReader struct{}
 
 func (errReader) Read(p []byte) (n int, err error) {
@@ -38,7 +46,7 @@ func (errReader) Read(p []byte) (n int, err error) {
 }
 
 func TestGETJob(t *testing.T) {
-	now := time.Now().UTC().Truncate(time.Second)
+	now := time.Now()
 	jobStub := &StubJobRepository{
 		map[string]*Job{
 			"1": &Job{
@@ -306,6 +314,166 @@ func TestPayload(t *testing.T) {
 	})
 }
 
+func TestPUTJob(t *testing.T) {
+	const testJobID = "a1b2c3d4-e5f6-7890-1234-56789abcdef0"
+
+	testCases := []struct {
+		name       string
+		rawPayload string
+		checkField func(t *testing.T, got, original Job)
+	}{
+		{
+			name:       "updates only title",
+			rawPayload: `{"title": "another title"}`,
+			checkField: func(t *testing.T, got, original Job) {
+				assertEqual(t, got.Title, "another title", "job title was not correctly updated")
+				assertEqual(t, got.Description, original.Description, "job description was unexpectedly updated")
+				assertEqual(t, got.Priority, original.Priority, "job priority was unexpectedly updated")
+				assertEqual(t, got.Status, original.Status, "job status was unexpectedly updated")
+			},
+		},
+		{
+			name:       "updates only description",
+			rawPayload: `{"description": "another description"}`,
+			checkField: func(t *testing.T, got, original Job) {
+				assertEqual(t, got.Description, "another description", "job description was not correctly updated")
+				assertEqual(t, got.Title, original.Title, "job title was unexpectedly updated")
+				assertEqual(t, got.Priority, original.Priority, "job priority was unexpectedly updated")
+				assertEqual(t, got.Status, original.Status, "job status was unexpectedly updated")
+			},
+		},
+		{
+			name:       "updates only priority",
+			rawPayload: `{"priority": 3}`,
+			checkField: func(t *testing.T, got, original Job) {
+				assertEqual(t, got.Priority, JobPriority(3), "job priority was not correctly updated")
+				assertEqual(t, got.Title, original.Title, "job title was unexpectedly updated")
+				assertEqual(t, got.Description, original.Description, "job description was unexpectedly updated")
+				assertEqual(t, got.Status, original.Status, "job status was unexpectedly updated")
+			},
+		},
+		{
+			name:       "updates only status",
+			rawPayload: `{"status": "running"}`,
+			checkField: func(t *testing.T, got, original Job) {
+				assertEqual(t, got.Status, JobStatusRunning, "job status was not correctly updated")
+				assertEqual(t, got.Title, original.Title, "job title was unexpectedly updated")
+				assertEqual(t, got.Description, original.Description, "job description was unexpectedly updated")
+				assertEqual(t, got.Priority, original.Priority, "job priority was unexpectedly updated")
+			},
+		},
+		{
+			name:       "updates all fields together",
+			rawPayload: `{"title": "another title", "description": "another description", "priority": 3, "status": "running"}`,
+			checkField: func(t *testing.T, got, original Job) {
+				assertEqual(t, got.Title, "another title", "job title was not correctly updated")
+				assertEqual(t, got.Description, "another description", "job description was not correctly updated")
+				assertEqual(t, got.Priority, JobPriority(3), "job priority was not correctly updated")
+				assertEqual(t, got.Status, JobStatusRunning, "job status was not correctly updated")
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			repo := setupRepo(testJobID)
+			server := &JobServer{repo}
+			original := *repo.jobs[testJobID]
+
+			req := newPUTJobHTTPRequest(testJobID, tc.rawPayload)
+			res := httptest.NewRecorder()
+
+			server.ServeHTTP(res, req)
+
+			var got Job
+			assertEqual(t, res.Code, http.StatusOK, "wrong response status")
+			assertJSONDecode(t, res.Body, &got)
+			assertTimeAfter(t, got.UpdatedAt, got.CreatedAt, "job UpdatedAt was not correctly updated")
+			tc.checkField(t, got, original)
+		})
+	}
+
+	t.Run("returns 422 on empty JSON body", func(t *testing.T) {
+		repo := setupRepo(testJobID)
+		server := &JobServer{repo}
+
+		rawPayload := `{}`
+		req := newPUTJobHTTPRequest(testJobID, rawPayload)
+		res := httptest.NewRecorder()
+
+		server.ServeHTTP(res, req)
+
+		var got ErrorResponse
+		assertJSONDecode(t, res.Body, &got)
+		assertEqual(t, res.Code, http.StatusUnprocessableEntity, "did not get correct status")
+		assertEqual(t, got.Message, MsgInvalidReqPayload, "wrong Message in ErrorResponse body")
+		for key, errMsg := range got.Errors {
+			assertEqual(t, key, KeyBody, "wrong Key in ErrorResponse.Errors")
+			assertEqual(t, errMsg, MsgEmptyJSONBody, "wrong message in ErrorResponse.Errors")
+		}
+	})
+
+	t.Run("priority out of range", func(t *testing.T) {
+		repo := setupRepo(testJobID)
+		server := &JobServer{repo}
+
+		rawPayload := `{"priority": -1}`
+		req := newPUTJobHTTPRequest(testJobID, rawPayload)
+		res := httptest.NewRecorder()
+
+		server.ServeHTTP(res, req)
+
+		var got ErrorResponse
+		assertJSONDecode(t, res.Body, &got)
+
+		assertEqual(t, res.Code, http.StatusUnprocessableEntity, "did not get correct status")
+		assertEqual(t, got.Message, MsgInvalidReqPayload, "wrong Message in ErrorResponse body")
+		for key, errMsg := range got.Errors {
+			assertEqual(t, key, KeyPriority, "wrong Key in ErrorResponse.Errors")
+			assertEqual(t, errMsg, MsgPriorityOutOfRange, "wrong message in ErrorResponse.Errors")
+		}
+	})
+
+	t.Run("invalid status value", func(t *testing.T) {
+		repo := setupRepo(testJobID)
+		server := &JobServer{repo}
+
+		rawPayload := `{"status": "test"}`
+		req := newPUTJobHTTPRequest(testJobID, rawPayload)
+		res := httptest.NewRecorder()
+
+		server.ServeHTTP(res, req)
+
+		var got ErrorResponse
+		assertJSONDecode(t, res.Body, &got)
+
+		assertEqual(t, res.Code, http.StatusUnprocessableEntity, "did not get correct status")
+		assertEqual(t, got.Message, MsgInvalidReqPayload, "wrong Message in ErrorResponse body")
+		for key, errMsg := range got.Errors {
+			assertEqual(t, key, KeyStatus, "wrong Key in ErrorResponse.Errors")
+			assertEqual(t, errMsg, MsgInvalidStatus, "wrong message in ErrorResponse.Errors")
+		}
+	})
+
+	t.Run("invalid status transition", func(t *testing.T) {
+		repo := setupRepo(testJobID)
+		server := &JobServer{repo}
+
+		rawPayload := `{"status": "done"}`
+		req := newPUTJobHTTPRequest(testJobID, rawPayload)
+		res := httptest.NewRecorder()
+
+		server.ServeHTTP(res, req)
+
+		var got ErrorResponse
+		assertJSONDecode(t, res.Body, &got)
+
+		assertEqual(t, res.Code, http.StatusUnprocessableEntity, "did not get correct status")
+		assertEqual(t, got.Message, "invalid status transition", "wrong Message in ErrorResponse body")
+	})
+
+}
+
 func newGETJobHTTPRequest(id string) *http.Request {
 	req := httptest.NewRequest(http.MethodGet, fmt.Sprintf("/jobs/%s", id), nil)
 	return req
@@ -313,6 +481,13 @@ func newGETJobHTTPRequest(id string) *http.Request {
 
 func newPOSTJobHTTPRequest(rawPayload string) *http.Request {
 	req := httptest.NewRequest(http.MethodPost, "/jobs", strings.NewReader(rawPayload))
+	return req
+}
+
+func newPUTJobHTTPRequest(jobID, rawPayload string) *http.Request {
+	path := fmt.Sprintf("/jobs/%s", jobID)
+	req := httptest.NewRequest(http.MethodPut, path, strings.NewReader(rawPayload))
+	req.SetPathValue("id", jobID)
 	return req
 }
 
@@ -329,4 +504,29 @@ func assertPostJobResponseBody(t *testing.T, got Job, want CreateJobRequest) {
 	if got.CreatedAt.IsZero() {
 		t.Errorf("response body is wrong, CreatedAt should not be zero")
 	}
+}
+
+func assertPutJobResponseBody(t *testing.T, got Job, want UpdateJobRequest) {
+	t.Helper()
+	fmt.Printf("\nINSIDE ASSERT job %#v \nwantDTO: %#v\n", got, want)
+
+}
+
+func setupRepo(testID string) *StubJobRepository {
+	now := time.Now()
+	jobStub := &StubJobRepository{
+		map[string]*Job{
+			testID: &Job{
+				ID:          testID,
+				Title:       "GET job title",
+				Description: "lorem ipsum",
+				Status:      JobStatusPending,
+				Priority:    JobPriority(2),
+				UserID:      "1",
+				CreatedAt:   now,
+				UpdatedAt:   now,
+			},
+		},
+	}
+	return jobStub
 }

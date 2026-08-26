@@ -46,3 +46,28 @@ func NewJob(title, description string, priority JobPriority, userID string) Job 
 		UpdatedAt:   time.Now(),
 	}
 }
+
+func (s JobStatus) IsValid() bool {
+	switch s {
+	case JobStatusPending, JobStatusRunning, JobStatusDone, JobStatusFailed:
+		return true
+	default:
+		return false
+	}
+}
+
+var validTransitions = map[JobStatus][]JobStatus{
+	JobStatusPending: {JobStatusRunning, JobStatusFailed},
+	JobStatusRunning: {JobStatusDone, JobStatusFailed},
+	JobStatusFailed:  {JobStatusPending},
+	JobStatusDone:    {}, // terminal
+}
+
+func (j *Job) CanTransitionTo(newStatus JobStatus) bool {
+	for _, s := range validTransitions[j.Status] {
+		if s == newStatus {
+			return true
+		}
+	}
+	return false
+}

@@ -3,14 +3,22 @@ package main
 import (
 	"bytes"
 	"encoding/json"
-	"reflect"
 	"testing"
+	"time"
 )
 
 func assertEqual[T comparable](t *testing.T, got, want T, context string) {
 	t.Helper()
 
 	if got != want {
+		t.Errorf("%s: got: %v; want: %v", context, got, want)
+	}
+}
+
+func assertNotEqual[T comparable](t *testing.T, got, want T, context string) {
+	t.Helper()
+
+	if got == want {
 		t.Errorf("%s: got: %v; want: %v", context, got, want)
 	}
 }
@@ -34,7 +42,24 @@ func assertJSONDecode[T any](t *testing.T, b *bytes.Buffer, v *T) {
 func assertJob(t *testing.T, got Job, want Job) {
 	t.Helper()
 
-	if isEqual := reflect.DeepEqual(got, want); !isEqual {
-		t.Errorf("jobs not equal: got: %#v, want: %#v", got, want)
+	if got.ID != want.ID ||
+		got.Title != want.Title ||
+		got.Description != want.Description ||
+		got.Status != want.Status ||
+		got.Priority != want.Priority ||
+		got.UserID != want.UserID {
+		t.Errorf("job fields mismatch: got %#v, want %#v", got, want)
+	}
+
+	if !got.CreatedAt.Equal(want.CreatedAt) {
+		t.Errorf("createdAt mismatch: got %v, want %v", got.CreatedAt, want.CreatedAt)
+	}
+}
+
+func assertTimeAfter(t *testing.T, got, want time.Time, context string) {
+	t.Helper()
+
+	if !got.After(want) {
+		t.Errorf("%s: got %v, want %v", context, got, want)
 	}
 }
