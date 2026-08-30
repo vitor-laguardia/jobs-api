@@ -7,7 +7,8 @@ import (
 
 func main() {
 	jobs := NewInMemoryJobs()
-	server := &JobServer{jobs}
-	http.Handle("/jobs/{id}", server)
-	log.Fatal(http.ListenAndServe(":8080", nil))
+	service := newJobService(jobs)
+	jh := NewJobHandler(service)
+
+	log.Fatal(http.ListenAndServe(":8080", jh))
 }

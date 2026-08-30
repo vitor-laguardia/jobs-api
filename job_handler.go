@@ -7,12 +7,10 @@ import (
 	"io"
 	"net/http"
 	"strings"
-	"time"
 )
 
 const (
 	MsgInvalidReqPayload     = "invalid request payload"
-	MsgJobNotFound           = "job not found"
 	MsgEmptyBody             = "request body must not be empty"
 	MsgSyntaxErr             = "request body contains badly-formed JSON (at position %d)"
 	MsgUnexpectedEOF         = "request body contains badly-formed JSON"
@@ -26,14 +24,9 @@ const (
 	MaxBodyBytes             = 1048576
 )
 
-type Repository interface {
-	GetByID(id string) *Job
-	Create(job *Job)
-	Update(job *Job) *Job
-}
-
-type JobServer struct {
-	repo Repository
+type JobHandler struct {
+	service *JobService
+	router  *http.ServeMux
 }
 
 type Validator interface {
@@ -46,20 +39,38 @@ type ErrorResponse struct {
 	Errors  map[string]string `json:"errors,omitempty"`
 }
 
-func (j *JobServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	switch r.Method {
-	case http.MethodGet:
-		j.getJob(w, r)
-
-	case http.MethodPost:
-		j.postJob(w, r)
-
-	case http.MethodPut:
-		j.updateJob(w, r)
-	}
+func NewJobHandler(service *JobService) *JobHandler {
+	jh := &JobHandler{service: service}
+	mux := http.NewServeMux()
+	mux.HandleFunc("POST /jobs", jh.postJob)
+	mux.HandleFunc("PUT /jobs/{id}", jh.updateJob)
+	mux.HandleFunc("GET /jobs/{id}", jh.getJob)
+	jh.router = mux
+	return jh
 }
 
-func (j *JobServer) postJob(w http.ResponseWriter, r *http.Request) {
+func (jh *JobHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	jh.router.ServeHTTP(w, r)
+}
+
+func (jh *JobHandler) getJob(w http.ResponseWriter, r *http.Request) {
+	jobID := r.PathValue("id")
+
+	job, err := jh.service.GetByID(jobID)
+
+	if err != nil {
+		errRes := ErrorResponse{Message: err.Error(), Status: http.StatusNotFound}
+		w.WriteHeader(errRes.Status)
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(errRes)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(job)
+}
+
+func (jh *JobHandler) postJob(w http.ResponseWriter, r *http.Request) {
 	jobReq, errResp := decodeValid[CreateJobRequest](w, r)
 
 	if errResp != nil {
@@ -69,33 +80,15 @@ func (j *JobServer) postJob(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	newJob := NewJob(jobReq.Title, jobReq.Description, JobPriority(jobReq.Priority), jobReq.UserID)
-	j.repo.Create(&newJob)
-	w.Header().Set("Content-Type", "application/json")
+	nj := jh.service.Create(jobReq)
+
 	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(newJob)
-}
-
-func (j *JobServer) getJob(w http.ResponseWriter, r *http.Request) {
-	jobId := r.PathValue("id")
-	job := j.repo.GetByID(jobId)
-
 	w.Header().Set("Content-Type", "application/json")
-
-	if job == nil {
-		errRes := ErrorResponse{Message: MsgJobNotFound, Status: http.StatusNotFound}
-		w.WriteHeader(errRes.Status)
-		json.NewEncoder(w).Encode(errRes)
-		return
-	}
-	json.NewEncoder(w).Encode(job)
+	json.NewEncoder(w).Encode(nj)
 }
 
-func (j *JobServer) updateJob(w http.ResponseWriter, r *http.Request) {
-	jobID := r.PathValue("id")
-
-	jobInput, errResp := decodeValid[UpdateJobRequest](w, r)
-	fmt.Printf("\n errResp: %v\n", errResp)
+func (jh *JobHandler) updateJob(w http.ResponseWriter, r *http.Request) {
+	jobReq, errResp := decodeValid[UpdateJobRequest](w, r)
 
 	if errResp != nil {
 		w.WriteHeader(errResp.Status)
@@ -104,50 +97,24 @@ func (j *JobServer) updateJob(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	job := j.repo.GetByID(jobID)
+	jobID := r.PathValue("id")
+	updatedJob, err := jh.service.Update(jobID, jobReq)
 
-	//	if job == nil {
-	//		return a
-	//	}
-
-	if jobInput.Title != "" {
-		job.Title = jobInput.Title
-	}
-	if jobInput.Description != "" {
-		job.Description = jobInput.Description
-	}
-
-	if jobInput.Priority != 0 {
-		job.Priority = JobPriority(jobInput.Priority)
-	}
-
-	if jobInput.Status != "" {
-		if !job.CanTransitionTo(JobStatus(jobInput.Status)) {
-			w.WriteHeader(http.StatusUnprocessableEntity)
-			errResp := ErrorResponse{
-				Status:  http.StatusUnprocessableEntity,
-				Message: "invalid status transition",
-			}
-
-			json.NewEncoder(w).Encode(errResp)
-			return
+	if err != nil {
+		var errResp *ErrorResponse
+		switch {
+		case errors.Is(err, ErrJobNotFound):
+			errResp = &ErrorResponse{Message: err.Error(), Status: http.StatusBadRequest}
+		case errors.Is(err, ErrJobStatusTransition):
+			errResp = &ErrorResponse{Message: err.Error(), Status: http.StatusUnprocessableEntity}
 		}
 
-		job.Status = JobStatus(jobInput.Status)
-
-	}
-
-	job.UpdatedAt = time.Now()
-
-	updatedJob := j.repo.Update(job)
-
-	if updatedJob == nil {
-		w.WriteHeader(http.StatusUnprocessableEntity)
 		w.Header().Set("content-type", "application/json")
-		//json.NewEncoder(w).Encode(errResp)
+		w.WriteHeader(errResp.Status)
+		json.NewEncoder(w).Encode(errResp)
 		return
-
 	}
+
 	json.NewEncoder(w).Encode(updatedJob)
 }
 
