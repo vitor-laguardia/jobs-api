@@ -43,6 +43,7 @@ func NewJobHandler(service *JobService) *JobHandler {
 	jh := &JobHandler{service: service}
 	mux := http.NewServeMux()
 	mux.HandleFunc("POST /jobs", jh.postJob)
+	mux.HandleFunc("GET /user", jh.getUser)
 	mux.HandleFunc("PUT /jobs/{id}", jh.updateJob)
 	mux.HandleFunc("GET /jobs/{id}", jh.getJob)
 	mux.HandleFunc("DELETE /jobs/{id}", jh.deleteJob)
@@ -133,6 +134,10 @@ func (jh *JobHandler) deleteJob(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("content-type", "application/json")
 	w.WriteHeader(http.StatusNoContent)
+}
+
+func (jh *JobHandler) getUser(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusOK)
 }
 
 func decodeValid[T Validator](w http.ResponseWriter, r *http.Request) (T, *ErrorResponse) {
