@@ -39,6 +39,14 @@ func (s *StubJobRepository) Update(job *Job) *Job {
 	return job
 }
 
+func (s *StubJobRepository) Delete(jobID string) error {
+	if _, exists := s.jobs[jobID]; !exists {
+		return ErrJobNotFound
+	}
+	delete(s.jobs, jobID)
+	return nil
+}
+
 type errReader struct{}
 
 func (errReader) Read(p []byte) (n int, err error) {
@@ -380,6 +388,7 @@ func TestPUTJob(t *testing.T) {
 
 			var got Job
 			assertEqual(t, res.Code, http.StatusOK, "wrong response status")
+			assertEqual(t, res.Header().Get("content-type"), "application/json", "wrong content type format")
 			assertJSONDecode(t, res.Body, &got)
 			assertTimeAfter(t, got.UpdatedAt, got.CreatedAt, "job UpdatedAt was not correctly updated")
 			tc.checkField(t, got, original)
@@ -400,6 +409,8 @@ func TestPUTJob(t *testing.T) {
 		var got ErrorResponse
 		assertJSONDecode(t, res.Body, &got)
 		assertEqual(t, res.Code, http.StatusUnprocessableEntity, "did not get correct response status code")
+
+		assertEqual(t, res.Header().Get("content-type"), "application/json", "wrong content type format")
 		assertEqual(t, got.Message, MsgInvalidReqPayload, "wrong Message in ErrorResponse body")
 		for key, errMsg := range got.Errors {
 			assertEqual(t, key, KeyBody, "wrong Key in ErrorResponse.Errors")
@@ -422,6 +433,8 @@ func TestPUTJob(t *testing.T) {
 		assertJSONDecode(t, res.Body, &got)
 
 		assertEqual(t, res.Code, http.StatusUnprocessableEntity, "did not get correct response status code")
+
+		assertEqual(t, res.Header().Get("content-type"), "application/json", "wrong content type format")
 		assertEqual(t, got.Message, MsgInvalidReqPayload, "wrong Message in ErrorResponse body")
 		for key, errMsg := range got.Errors {
 			assertEqual(t, key, KeyPriority, "wrong Key in ErrorResponse.Errors")
@@ -444,6 +457,8 @@ func TestPUTJob(t *testing.T) {
 		assertJSONDecode(t, res.Body, &got)
 
 		assertEqual(t, res.Code, http.StatusUnprocessableEntity, "did not get correct response status code")
+
+		assertEqual(t, res.Header().Get("content-type"), "application/json", "wrong content type format")
 		assertEqual(t, got.Message, MsgInvalidReqPayload, "wrong Message in ErrorResponse body")
 		for key, errMsg := range got.Errors {
 			assertEqual(t, key, KeyStatus, "wrong Key in ErrorResponse.Errors")
@@ -466,6 +481,8 @@ func TestPUTJob(t *testing.T) {
 		assertJSONDecode(t, res.Body, &got)
 
 		assertEqual(t, res.Code, http.StatusUnprocessableEntity, "did not get correct response status code")
+
+		assertEqual(t, res.Header().Get("content-type"), "application/json", "wrong content type format")
 		assertEqual(t, got.Message, MsgInvalidStatusTransition, "wrong Message in ErrorResponse body")
 	})
 
@@ -484,10 +501,44 @@ func TestPUTJob(t *testing.T) {
 		var got ErrorResponse
 		assertJSONDecode(t, res.Body, &got)
 		assertEqual(t, res.Code, http.StatusBadRequest, "did not get correct response status code")
+		assertEqual(t, res.Header().Get("content-type"), "application/json", "wrong content type format")
 		assertEqual(t, got.Message, MsgJobNotFound, "wrong Message in ErrorResponse body")
+	})
+}
+
+func TestDELETEJob(t *testing.T) {
+	const testJobID = "q1p9x3d4-e5f6-7890-1234-56789abcdef0"
+
+	t.Run("successfuly delete a job", func(t *testing.T) {
+		stubRepo := setupRepo(testJobID)
+		service := newJobService(stubRepo)
+		jobHandler := NewJobHandler(service)
+
+		req := newDELETEJobHTTPRequest(testJobID)
+		res := httptest.NewRecorder()
+
+		jobHandler.ServeHTTP(res, req)
+
+		assertEqual(t, res.Code, http.StatusNoContent, "did not get correct response status code")
+		assertEqual(t, res.Header().Get("content-type"), "application/json", "wrong content type format")
+		assertEqual(t, stubRepo.jobs[testJobID], nil, "job was not properly deleted")
+	})
+	t.Run("receive error when delete non-existent job", func(t *testing.T) {
+		stubRepo := &StubJobRepository{make(map[string]*Job)}
+		service := newJobService(stubRepo)
+		jobHandler := NewJobHandler(service)
+
+		req := newDELETEJobHTTPRequest(testJobID)
+		res := httptest.NewRecorder()
+
+		jobHandler.ServeHTTP(res, req)
+
+		assertEqual(t, res.Code, http.StatusNotFound, "did not get correct response status code")
+		assertEqual(t, res.Header().Get("content-type"), "application/json", "wrong content type format")
 	})
 
 }
+
 func newGETJobHTTPRequest(id string) *http.Request {
 	req := httptest.NewRequest(http.MethodGet, fmt.Sprintf("/jobs/%s", id), nil)
 	return req
@@ -505,6 +556,12 @@ func newPUTJobHTTPRequest(jobID, rawPayload string) *http.Request {
 	return req
 }
 
+func newDELETEJobHTTPRequest(jobID string) *http.Request {
+	path := fmt.Sprintf("/jobs/%s", jobID)
+	req := httptest.NewRequest(http.MethodDelete, path, nil)
+	req.SetPathValue("id", jobID)
+	return req
+}
 func assertPostJobResponseBody(t *testing.T, got Job, want CreateJobRequest) {
 	t.Helper()
 

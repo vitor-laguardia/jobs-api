@@ -19,6 +19,7 @@ type Repository interface {
 	GetByID(id string) *Job
 	Create(job *Job)
 	Update(job *Job) *Job
+	Delete(jobID string) error
 }
 
 type JobService struct {
@@ -70,4 +71,8 @@ func (js *JobService) Update(jobID string, jobReq UpdateJobRequest) (*Job, error
 
 	updatedJob := js.repo.Update(job)
 	return updatedJob, nil
+}
+
+func (js *JobService) Delete(jobID string) error {
+	return js.repo.Delete(jobID)
 }

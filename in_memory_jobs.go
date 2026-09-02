@@ -16,6 +16,10 @@ func (r *JobRepository) Update(job *Job) *Job {
 	return nil
 }
 
+func (r *JobRepository) Delete(jobID string) error {
+	return nil
+}
+
 func NewInMemoryJobs() *JobRepository {
 	return &JobRepository{make(map[string]*Job)}
 }

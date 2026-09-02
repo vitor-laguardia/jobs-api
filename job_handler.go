@@ -45,6 +45,7 @@ func NewJobHandler(service *JobService) *JobHandler {
 	mux.HandleFunc("POST /jobs", jh.postJob)
 	mux.HandleFunc("PUT /jobs/{id}", jh.updateJob)
 	mux.HandleFunc("GET /jobs/{id}", jh.getJob)
+	mux.HandleFunc("DELETE /jobs/{id}", jh.deleteJob)
 	jh.router = mux
 	return jh
 }
@@ -115,7 +116,23 @@ func (jh *JobHandler) updateJob(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	w.Header().Set("content-type", "application/json")
 	json.NewEncoder(w).Encode(updatedJob)
+}
+
+func (jh *JobHandler) deleteJob(w http.ResponseWriter, r *http.Request) {
+	jobID := r.PathValue("id")
+
+	if err := jh.service.Delete(jobID); err != nil {
+		errResp := &ErrorResponse{Message: err.Error(), Status: http.StatusNotFound}
+		w.WriteHeader(errResp.Status)
+		w.Header().Set("content-type", "application/json")
+		json.NewEncoder(w).Encode(errResp)
+		return
+	}
+
+	w.Header().Set("content-type", "application/json")
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func decodeValid[T Validator](w http.ResponseWriter, r *http.Request) (T, *ErrorResponse) {
