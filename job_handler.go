@@ -43,7 +43,6 @@ func NewJobHandler(service *JobService) *JobHandler {
 	jh := &JobHandler{service: service}
 	mux := http.NewServeMux()
 	mux.HandleFunc("POST /jobs", jh.postJob)
-	mux.HandleFunc("GET /user", jh.getUser)
 	mux.HandleFunc("PUT /jobs/{id}", jh.updateJob)
 	mux.HandleFunc("GET /jobs/{id}", jh.getJob)
 	mux.HandleFunc("DELETE /jobs/{id}", jh.deleteJob)
