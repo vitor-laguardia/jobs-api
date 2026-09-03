@@ -5,26 +5,26 @@ import (
 	"net/http"
 )
 
-type UserHandler struct {
-	service *UserService
+type Handler struct {
+	service *Service
 	router  *http.ServeMux
 }
 
-func NewUserHandler() *UserHandler {
-	uh := &UserHandler{}
+func NewHandler(service *Service) *Handler {
+	h := &Handler{service: service}
 	mux := http.NewServeMux()
-	mux.HandleFunc("GET /users/{id}", uh.getUser)
-	uh.router = mux
-	return uh
+	mux.HandleFunc("GET /users/{id}", h.getUser)
+	h.router = mux
+	return h
 }
 
-func (uh *UserHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	uh.router.ServeHTTP(w, r)
+func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	h.router.ServeHTTP(w, r)
 }
 
-func (uh *UserHandler) getUser(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) getUser(w http.ResponseWriter, r *http.Request) {
 	userID := r.PathValue("id")
-	user := uh.service.GetByID(userID)
+	user := h.service.GetByID(userID)
 
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(user)

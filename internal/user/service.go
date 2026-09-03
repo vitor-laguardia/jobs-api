@@ -1,9 +1,18 @@
 package user
 
-type UserService struct {
+type Repository interface {
+	GetByID(userID string) *User
 }
 
-func (us *UserService) GetByID(userID string) *User {
-	user := &User{ID: userID, Name: "alfred", Email: "alfred@gmail.com"}
+type Service struct {
+	repo Repository
+}
+
+func newService(repo Repository) *Service {
+	return &Service{repo: repo}
+}
+
+func (s *Service) GetByID(userID string) *User {
+	user := s.repo.GetByID(userID)
 	return user
 }
