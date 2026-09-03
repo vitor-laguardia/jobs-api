@@ -1,4 +1,4 @@
-package main
+package job
 
 type JobRepository struct {
 	jobs map[string]*Job

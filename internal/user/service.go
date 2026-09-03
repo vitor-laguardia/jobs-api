@@ -1,4 +1,4 @@
-package main
+package user
 
 type UserService struct {
 }

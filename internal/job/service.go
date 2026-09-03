@@ -1,4 +1,4 @@
-package main
+package job
 
 import (
 	"errors"
@@ -26,7 +26,7 @@ type JobService struct {
 	repo Repository
 }
 
-func newJobService(repo Repository) *JobService {
+func NewJobService(repo Repository) *JobService {
 	js := &JobService{repo}
 	return js
 }

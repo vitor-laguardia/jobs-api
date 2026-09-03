@@ -1,4 +1,4 @@
-package main
+package job
 
 const (
 	MsgTitleRequired      = "title is required"

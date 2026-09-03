@@ -1,4 +1,4 @@
-package main
+package job
 
 import (
 	"encoding/json"
@@ -6,11 +6,13 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/vitor-laguardia/jobs-api/internal/shared/assert"
 )
 
 func TestPOSTJobAndGETIt(t *testing.T) {
 	jobDb := NewInMemoryJobs()
-	service := newJobService(jobDb)
+	service := NewJobService(jobDb)
 	server := NewJobHandler(service)
 
 	rawPayload := `{"title":"my first job","description":"getting use with it","priority":1,"userId":"1"}`
@@ -31,8 +33,8 @@ func TestPOSTJobAndGETIt(t *testing.T) {
 
 	var got Job
 
-	assertEqual(t, GETRes.Code, http.StatusOK, "wrong response status (GET Job): ")
-	assertJSONDecode(t, GETRes.Body, &got)
-	assertEqual(t, GETRes.Code, http.StatusOK, "did not get correct status")
+	assert.Equal(t, GETRes.Code, http.StatusOK, "wrong response status (GET Job): ")
+	assert.JSONDecode(t, GETRes.Body, &got)
+	assert.Equal(t, GETRes.Code, http.StatusOK, "did not get correct status")
 	assertJob(t, got, newJob)
 }

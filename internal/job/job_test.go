@@ -1,4 +1,4 @@
-package main
+package job
 
 import (
 	"errors"
@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/vitor-laguardia/jobs-api/internal/shared/assert"
 )
 
 type StubJobRepository struct {
@@ -57,7 +58,7 @@ func TestGETJob(t *testing.T) {
 	const testJobID = "b2z4x3d4-e5f6-7890-1234-56789abcdef0"
 
 	jobStub := setupRepo(testJobID)
-	service := newJobService(jobStub)
+	service := NewJobService(jobStub)
 	jobHandler := NewJobHandler(service)
 
 	t.Run("get job stub", func(t *testing.T) {
@@ -70,9 +71,9 @@ func TestGETJob(t *testing.T) {
 		var got Job
 		want := *jobStub.jobs[testJobID]
 
-		assertEqual(t, res.Code, http.StatusOK, "did not get correct response status code")
-		assertEqual(t, res.Header().Get("content-type"), "application/json", "wrong content type format")
-		assertJSONDecode(t, res.Body, &got)
+		assert.Equal(t, res.Code, http.StatusOK, "did not get correct response status code")
+		assert.Equal(t, res.Header().Get("content-type"), "application/json", "wrong content type format")
+		assert.JSONDecode(t, res.Body, &got)
 		assertJob(t, got, want)
 	})
 
@@ -86,17 +87,17 @@ func TestGETJob(t *testing.T) {
 
 		var got ErrorResponse
 
-		assertEqual(t, res.Code, http.StatusNotFound, "did not get correct response status code")
-		assertEqual(t, res.Header().Get("content-type"), "application/json", "wrong content type format")
-		assertJSONDecode(t, res.Body, &got)
-		assertEqual(t, got.Message, MsgJobNotFound, "wrong Message in error response")
+		assert.Equal(t, res.Code, http.StatusNotFound, "did not get correct response status code")
+		assert.Equal(t, res.Header().Get("content-type"), "application/json", "wrong content type format")
+		assert.JSONDecode(t, res.Body, &got)
+		assert.Equal(t, got.Message, MsgJobNotFound, "wrong Message in error response")
 	})
 
 }
 
 func TestPostJob(t *testing.T) {
 	stubRepo := &StubJobRepository{make(map[string]*Job)}
-	s := newJobService(stubRepo)
+	s := NewJobService(stubRepo)
 	jh := NewJobHandler(s)
 
 	t.Run("it returns the new job as JSON", func(t *testing.T) {
@@ -110,10 +111,10 @@ func TestPostJob(t *testing.T) {
 		var got Job
 		var want CreateJobRequest
 
-		assertEqual(t, res.Code, http.StatusCreated, "did not get correct response status code")
-		assertEqual(t, res.Header().Get("content-type"), "application/json", "wrong content type format")
-		assertJSONDecode(t, res.Body, &got)
-		assertUnmarshal(t, rawPayload, &want)
+		assert.Equal(t, res.Code, http.StatusCreated, "did not get correct response status code")
+		assert.Equal(t, res.Header().Get("content-type"), "application/json", "wrong content type format")
+		assert.JSONDecode(t, res.Body, &got)
+		assert.Unmarshal(t, rawPayload, &want)
 		assertPostJobResponseBody(t, got, want)
 	})
 
@@ -162,13 +163,13 @@ func TestPostJob(t *testing.T) {
 			jh.ServeHTTP(res, req)
 
 			var got ErrorResponse
-			assertEqual(t, res.Code, tt.wantStatus, "did not get correct response status code")
-			assertEqual(t, res.Header().Get("content-type"), "application/json", "wrong content type format")
-			assertJSONDecode(t, res.Body, &got)
-			assertEqual(t, got.Message, MsgInvalidReqPayload, "wrong message in error response")
+			assert.Equal(t, res.Code, tt.wantStatus, "did not get correct response status code")
+			assert.Equal(t, res.Header().Get("content-type"), "application/json", "wrong content type format")
+			assert.JSONDecode(t, res.Body, &got)
+			assert.Equal(t, got.Message, MsgInvalidReqPayload, "wrong message in error response")
 			for key, errMsg := range got.Errors {
-				assertEqual(t, key, tt.wantKey, "wrong Key in error response")
-				assertEqual(t, errMsg, tt.wantMessage, "wrong error message in response body")
+				assert.Equal(t, key, tt.wantKey, "wrong Key in error response")
+				assert.Equal(t, errMsg, tt.wantMessage, "wrong error message in response body")
 			}
 		})
 	}
@@ -177,7 +178,7 @@ func TestPostJob(t *testing.T) {
 
 func TestPayload(t *testing.T) {
 	stubRepo := &StubJobRepository{make(map[string]*Job)}
-	s := newJobService(stubRepo)
+	s := NewJobService(stubRepo)
 	jh := NewJobHandler(s)
 
 	tableTests := []struct {
@@ -238,7 +239,7 @@ func TestPayload(t *testing.T) {
 			jh.ServeHTTP(res, req)
 
 			var got ErrorResponse
-			assertJSONDecode(t, res.Body, &got)
+			assert.JSONDecode(t, res.Body, &got)
 
 			wantMessage := func() string {
 				if tt.needSprintf {
@@ -247,8 +248,8 @@ func TestPayload(t *testing.T) {
 				return tt.wantMessage
 			}
 
-			assertEqual(t, res.Code, tt.wantStatus, "did not get correct response status code")
-			assertEqual(t, got.Message, wantMessage(), "wrong error message in response body")
+			assert.Equal(t, res.Code, tt.wantStatus, "did not get correct response status code")
+			assert.Equal(t, got.Message, wantMessage(), "wrong error message in response body")
 		})
 	}
 
@@ -261,9 +262,9 @@ func TestPayload(t *testing.T) {
 		var got ErrorResponse
 		want := fmt.Sprintf(MsgWrongFieldType, "title", 13)
 
-		assertEqual(t, res.Code, http.StatusBadRequest, "did not get correct response status code")
-		assertJSONDecode(t, res.Body, &got)
-		assertEqual(t, got.Message, want, "wrong error message in response body")
+		assert.Equal(t, res.Code, http.StatusBadRequest, "did not get correct response status code")
+		assert.JSONDecode(t, res.Body, &got)
+		assert.Equal(t, got.Message, want, "wrong error message in response body")
 	})
 
 	t.Run("request body with 1MB", func(t *testing.T) {
@@ -278,10 +279,10 @@ func TestPayload(t *testing.T) {
 		var got ErrorResponse
 		want := fmt.Sprintf(MsgMaxBodyBytes, MaxBodyBytes)
 
-		assertJSONDecode(t, res.Body, &got)
+		assert.JSONDecode(t, res.Body, &got)
 
-		assertEqual(t, res.Code, http.StatusRequestEntityTooLarge, "did not get correct response status code")
-		assertEqual(t, got.Message, want, "wrong error message in response body")
+		assert.Equal(t, res.Code, http.StatusRequestEntityTooLarge, "did not get correct response status code")
+		assert.Equal(t, got.Message, want, "wrong error message in response body")
 	})
 
 	t.Run("request header without application/json", func(t *testing.T) {
@@ -293,10 +294,10 @@ func TestPayload(t *testing.T) {
 		jh.ServeHTTP(res, req)
 
 		var got ErrorResponse
-		assertJSONDecode(t, res.Body, &got)
+		assert.JSONDecode(t, res.Body, &got)
 
-		assertEqual(t, res.Code, http.StatusUnsupportedMediaType, "did not get correct response status code")
-		assertEqual(t, got.Message, MsgUnexpectedContentType, "wrong error message in response body")
+		assert.Equal(t, res.Code, http.StatusUnsupportedMediaType, "did not get correct response status code")
+		assert.Equal(t, got.Message, MsgUnexpectedContentType, "wrong error message in response body")
 
 	})
 
@@ -308,9 +309,9 @@ func TestPayload(t *testing.T) {
 
 		var got ErrorResponse
 
-		assertJSONDecode(t, res.Body, &got)
-		assertEqual(t, res.Code, http.StatusInternalServerError, "did not get correct response status code")
-		assertEqual(t, got.Message, MsgJSONError, "wrong error message in response body")
+		assert.JSONDecode(t, res.Body, &got)
+		assert.Equal(t, res.Code, http.StatusInternalServerError, "did not get correct response status code")
+		assert.Equal(t, got.Message, MsgJSONError, "wrong error message in response body")
 	})
 }
 
@@ -326,50 +327,50 @@ func TestPUTJob(t *testing.T) {
 			name:       "updates only title",
 			rawPayload: `{"title": "another title"}`,
 			checkField: func(t *testing.T, got, original Job) {
-				assertEqual(t, got.Title, "another title", "job title was not correctly updated")
-				assertEqual(t, got.Description, original.Description, "job description was unexpectedly updated")
-				assertEqual(t, got.Priority, original.Priority, "job priority was unexpectedly updated")
-				assertEqual(t, got.Status, original.Status, "job status was unexpectedly updated")
+				assert.Equal(t, got.Title, "another title", "job title was not correctly updated")
+				assert.Equal(t, got.Description, original.Description, "job description was unexpectedly updated")
+				assert.Equal(t, got.Priority, original.Priority, "job priority was unexpectedly updated")
+				assert.Equal(t, got.Status, original.Status, "job status was unexpectedly updated")
 			},
 		},
 		{
 			name:       "updates only description",
 			rawPayload: `{"description": "another description"}`,
 			checkField: func(t *testing.T, got, original Job) {
-				assertEqual(t, got.Description, "another description", "job description was not correctly updated")
-				assertEqual(t, got.Title, original.Title, "job title was unexpectedly updated")
-				assertEqual(t, got.Priority, original.Priority, "job priority was unexpectedly updated")
-				assertEqual(t, got.Status, original.Status, "job status was unexpectedly updated")
+				assert.Equal(t, got.Description, "another description", "job description was not correctly updated")
+				assert.Equal(t, got.Title, original.Title, "job title was unexpectedly updated")
+				assert.Equal(t, got.Priority, original.Priority, "job priority was unexpectedly updated")
+				assert.Equal(t, got.Status, original.Status, "job status was unexpectedly updated")
 			},
 		},
 		{
 			name:       "updates only priority",
 			rawPayload: `{"priority": 3}`,
 			checkField: func(t *testing.T, got, original Job) {
-				assertEqual(t, got.Priority, JobPriority(3), "job priority was not correctly updated")
-				assertEqual(t, got.Title, original.Title, "job title was unexpectedly updated")
-				assertEqual(t, got.Description, original.Description, "job description was unexpectedly updated")
-				assertEqual(t, got.Status, original.Status, "job status was unexpectedly updated")
+				assert.Equal(t, got.Priority, JobPriority(3), "job priority was not correctly updated")
+				assert.Equal(t, got.Title, original.Title, "job title was unexpectedly updated")
+				assert.Equal(t, got.Description, original.Description, "job description was unexpectedly updated")
+				assert.Equal(t, got.Status, original.Status, "job status was unexpectedly updated")
 			},
 		},
 		{
 			name:       "updates only status",
 			rawPayload: `{"status": "running"}`,
 			checkField: func(t *testing.T, got, original Job) {
-				assertEqual(t, got.Status, JobStatusRunning, "job status was not correctly updated")
-				assertEqual(t, got.Title, original.Title, "job title was unexpectedly updated")
-				assertEqual(t, got.Description, original.Description, "job description was unexpectedly updated")
-				assertEqual(t, got.Priority, original.Priority, "job priority was unexpectedly updated")
+				assert.Equal(t, got.Status, JobStatusRunning, "job status was not correctly updated")
+				assert.Equal(t, got.Title, original.Title, "job title was unexpectedly updated")
+				assert.Equal(t, got.Description, original.Description, "job description was unexpectedly updated")
+				assert.Equal(t, got.Priority, original.Priority, "job priority was unexpectedly updated")
 			},
 		},
 		{
 			name:       "updates all fields together",
 			rawPayload: `{"title": "another title", "description": "another description", "priority": 3, "status": "running"}`,
 			checkField: func(t *testing.T, got, original Job) {
-				assertEqual(t, got.Title, "another title", "job title was not correctly updated")
-				assertEqual(t, got.Description, "another description", "job description was not correctly updated")
-				assertEqual(t, got.Priority, JobPriority(3), "job priority was not correctly updated")
-				assertEqual(t, got.Status, JobStatusRunning, "job status was not correctly updated")
+				assert.Equal(t, got.Title, "another title", "job title was not correctly updated")
+				assert.Equal(t, got.Description, "another description", "job description was not correctly updated")
+				assert.Equal(t, got.Priority, JobPriority(3), "job priority was not correctly updated")
+				assert.Equal(t, got.Status, JobStatusRunning, "job status was not correctly updated")
 			},
 		},
 	}
@@ -377,7 +378,7 @@ func TestPUTJob(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			stubRepo := setupRepo(testJobID)
-			s := newJobService(stubRepo)
+			s := NewJobService(stubRepo)
 			jh := NewJobHandler(s)
 			original := *stubRepo.jobs[testJobID]
 
@@ -387,17 +388,17 @@ func TestPUTJob(t *testing.T) {
 			jh.ServeHTTP(res, req)
 
 			var got Job
-			assertEqual(t, res.Code, http.StatusOK, "wrong response status")
-			assertEqual(t, res.Header().Get("content-type"), "application/json", "wrong content type format")
-			assertJSONDecode(t, res.Body, &got)
-			assertTimeAfter(t, got.UpdatedAt, got.CreatedAt, "job UpdatedAt was not correctly updated")
+			assert.Equal(t, res.Code, http.StatusOK, "wrong response status")
+			assert.Equal(t, res.Header().Get("content-type"), "application/json", "wrong content type format")
+			assert.JSONDecode(t, res.Body, &got)
+			assert.TimeAfter(t, got.UpdatedAt, got.CreatedAt, "job UpdatedAt was not correctly updated")
 			tc.checkField(t, got, original)
 		})
 	}
 
 	t.Run("returns 422 on empty JSON body", func(t *testing.T) {
 		stubRepo := &StubJobRepository{make(map[string]*Job)}
-		s := newJobService(stubRepo)
+		s := NewJobService(stubRepo)
 		jh := NewJobHandler(s)
 
 		rawPayload := `{}`
@@ -407,20 +408,20 @@ func TestPUTJob(t *testing.T) {
 		jh.ServeHTTP(res, req)
 
 		var got ErrorResponse
-		assertJSONDecode(t, res.Body, &got)
-		assertEqual(t, res.Code, http.StatusUnprocessableEntity, "did not get correct response status code")
+		assert.JSONDecode(t, res.Body, &got)
+		assert.Equal(t, res.Code, http.StatusUnprocessableEntity, "did not get correct response status code")
 
-		assertEqual(t, res.Header().Get("content-type"), "application/json", "wrong content type format")
-		assertEqual(t, got.Message, MsgInvalidReqPayload, "wrong Message in ErrorResponse body")
+		assert.Equal(t, res.Header().Get("content-type"), "application/json", "wrong content type format")
+		assert.Equal(t, got.Message, MsgInvalidReqPayload, "wrong Message in ErrorResponse body")
 		for key, errMsg := range got.Errors {
-			assertEqual(t, key, KeyBody, "wrong Key in ErrorResponse.Errors")
-			assertEqual(t, errMsg, MsgEmptyJSONBody, "wrong Message in ErrorResponse.Errors")
+			assert.Equal(t, key, KeyBody, "wrong Key in ErrorResponse.Errors")
+			assert.Equal(t, errMsg, MsgEmptyJSONBody, "wrong Message in ErrorResponse.Errors")
 		}
 	})
 
 	t.Run("priority out of range", func(t *testing.T) {
 		stubRepo := &StubJobRepository{make(map[string]*Job)}
-		s := newJobService(stubRepo)
+		s := NewJobService(stubRepo)
 		jh := NewJobHandler(s)
 
 		rawPayload := `{"priority": -1}`
@@ -430,21 +431,21 @@ func TestPUTJob(t *testing.T) {
 		jh.ServeHTTP(res, req)
 
 		var got ErrorResponse
-		assertJSONDecode(t, res.Body, &got)
+		assert.JSONDecode(t, res.Body, &got)
 
-		assertEqual(t, res.Code, http.StatusUnprocessableEntity, "did not get correct response status code")
+		assert.Equal(t, res.Code, http.StatusUnprocessableEntity, "did not get correct response status code")
 
-		assertEqual(t, res.Header().Get("content-type"), "application/json", "wrong content type format")
-		assertEqual(t, got.Message, MsgInvalidReqPayload, "wrong Message in ErrorResponse body")
+		assert.Equal(t, res.Header().Get("content-type"), "application/json", "wrong content type format")
+		assert.Equal(t, got.Message, MsgInvalidReqPayload, "wrong Message in ErrorResponse body")
 		for key, errMsg := range got.Errors {
-			assertEqual(t, key, KeyPriority, "wrong Key in ErrorResponse.Errors")
-			assertEqual(t, errMsg, MsgPriorityOutOfRange, "wrong message in ErrorResponse.Errors")
+			assert.Equal(t, key, KeyPriority, "wrong Key in ErrorResponse.Errors")
+			assert.Equal(t, errMsg, MsgPriorityOutOfRange, "wrong message in ErrorResponse.Errors")
 		}
 	})
 
 	t.Run("invalid status value", func(t *testing.T) {
 		stubRepo := &StubJobRepository{make(map[string]*Job)}
-		s := newJobService(stubRepo)
+		s := NewJobService(stubRepo)
 		jh := NewJobHandler(s)
 
 		rawPayload := `{"status": "test"}`
@@ -454,21 +455,21 @@ func TestPUTJob(t *testing.T) {
 		jh.ServeHTTP(res, req)
 
 		var got ErrorResponse
-		assertJSONDecode(t, res.Body, &got)
+		assert.JSONDecode(t, res.Body, &got)
 
-		assertEqual(t, res.Code, http.StatusUnprocessableEntity, "did not get correct response status code")
+		assert.Equal(t, res.Code, http.StatusUnprocessableEntity, "did not get correct response status code")
 
-		assertEqual(t, res.Header().Get("content-type"), "application/json", "wrong content type format")
-		assertEqual(t, got.Message, MsgInvalidReqPayload, "wrong Message in ErrorResponse body")
+		assert.Equal(t, res.Header().Get("content-type"), "application/json", "wrong content type format")
+		assert.Equal(t, got.Message, MsgInvalidReqPayload, "wrong Message in ErrorResponse body")
 		for key, errMsg := range got.Errors {
-			assertEqual(t, key, KeyStatus, "wrong Key in ErrorResponse.Errors")
-			assertEqual(t, errMsg, MsgInvalidStatus, "wrong message in ErrorResponse.Errors")
+			assert.Equal(t, key, KeyStatus, "wrong Key in ErrorResponse.Errors")
+			assert.Equal(t, errMsg, MsgInvalidStatus, "wrong message in ErrorResponse.Errors")
 		}
 	})
 
 	t.Run("invalid status transition", func(t *testing.T) {
 		stubRepo := setupRepo(testJobID)
-		s := newJobService(stubRepo)
+		s := NewJobService(stubRepo)
 		jh := NewJobHandler(s)
 
 		rawPayload := `{"status": "done"}`
@@ -478,18 +479,18 @@ func TestPUTJob(t *testing.T) {
 		jh.ServeHTTP(res, req)
 
 		var got ErrorResponse
-		assertJSONDecode(t, res.Body, &got)
+		assert.JSONDecode(t, res.Body, &got)
 
-		assertEqual(t, res.Code, http.StatusUnprocessableEntity, "did not get correct response status code")
+		assert.Equal(t, res.Code, http.StatusUnprocessableEntity, "did not get correct response status code")
 
-		assertEqual(t, res.Header().Get("content-type"), "application/json", "wrong content type format")
-		assertEqual(t, got.Message, MsgInvalidStatusTransition, "wrong Message in ErrorResponse body")
+		assert.Equal(t, res.Header().Get("content-type"), "application/json", "wrong content type format")
+		assert.Equal(t, got.Message, MsgInvalidStatusTransition, "wrong Message in ErrorResponse body")
 	})
 
 	t.Run("update non-existent job", func(t *testing.T) {
 		fakeJobID := "v2y4x5d4-e5f6-7890-1234-56789abcdef0"
 		stubRepo := setupRepo(testJobID)
-		service := newJobService(stubRepo)
+		service := NewJobService(stubRepo)
 		jobHandler := NewJobHandler(service)
 
 		rawPayload := `{"title": "another title", "description": "another description", "priority": 3, "status": "running"}`
@@ -499,10 +500,10 @@ func TestPUTJob(t *testing.T) {
 		jobHandler.ServeHTTP(res, req)
 
 		var got ErrorResponse
-		assertJSONDecode(t, res.Body, &got)
-		assertEqual(t, res.Code, http.StatusBadRequest, "did not get correct response status code")
-		assertEqual(t, res.Header().Get("content-type"), "application/json", "wrong content type format")
-		assertEqual(t, got.Message, MsgJobNotFound, "wrong Message in ErrorResponse body")
+		assert.JSONDecode(t, res.Body, &got)
+		assert.Equal(t, res.Code, http.StatusBadRequest, "did not get correct response status code")
+		assert.Equal(t, res.Header().Get("content-type"), "application/json", "wrong content type format")
+		assert.Equal(t, got.Message, MsgJobNotFound, "wrong Message in ErrorResponse body")
 	})
 }
 
@@ -511,7 +512,7 @@ func TestDELETEJob(t *testing.T) {
 
 	t.Run("successfuly delete a job", func(t *testing.T) {
 		stubRepo := setupRepo(testJobID)
-		service := newJobService(stubRepo)
+		service := NewJobService(stubRepo)
 		jobHandler := NewJobHandler(service)
 
 		req := newDELETEJobHTTPRequest(testJobID)
@@ -519,13 +520,13 @@ func TestDELETEJob(t *testing.T) {
 
 		jobHandler.ServeHTTP(res, req)
 
-		assertEqual(t, res.Code, http.StatusNoContent, "did not get correct response status code")
-		assertEqual(t, res.Header().Get("content-type"), "application/json", "wrong content type format")
-		assertEqual(t, stubRepo.jobs[testJobID], nil, "job was not properly deleted")
+		assert.Equal(t, res.Code, http.StatusNoContent, "did not get correct response status code")
+		assert.Equal(t, res.Header().Get("content-type"), "application/json", "wrong content type format")
+		assert.Equal(t, stubRepo.jobs[testJobID], nil, "job was not properly deleted")
 	})
 	t.Run("receive error when delete non-existent job", func(t *testing.T) {
 		stubRepo := &StubJobRepository{make(map[string]*Job)}
-		service := newJobService(stubRepo)
+		service := NewJobService(stubRepo)
 		jobHandler := NewJobHandler(service)
 
 		req := newDELETEJobHTTPRequest(testJobID)
@@ -533,8 +534,8 @@ func TestDELETEJob(t *testing.T) {
 
 		jobHandler.ServeHTTP(res, req)
 
-		assertEqual(t, res.Code, http.StatusNotFound, "did not get correct response status code")
-		assertEqual(t, res.Header().Get("content-type"), "application/json", "wrong content type format")
+		assert.Equal(t, res.Code, http.StatusNotFound, "did not get correct response status code")
+		assert.Equal(t, res.Header().Get("content-type"), "application/json", "wrong content type format")
 	})
 
 }
@@ -565,10 +566,10 @@ func newDELETEJobHTTPRequest(jobID string) *http.Request {
 func assertPostJobResponseBody(t *testing.T, got Job, want CreateJobRequest) {
 	t.Helper()
 
-	assertEqual(t, got.Title, want.Title, "response body is wrong")
-	assertEqual(t, got.Description, want.Description, "response body is wrong")
-	assertEqual(t, got.Priority, JobPriority(want.Priority), "response body is wrong")
-	assertEqual(t, got.UserID, want.UserID, "response body is wrong")
+	assert.Equal(t, got.Title, want.Title, "response body is wrong")
+	assert.Equal(t, got.Description, want.Description, "response body is wrong")
+	assert.Equal(t, got.Priority, JobPriority(want.Priority), "response body is wrong")
+	assert.Equal(t, got.UserID, want.UserID, "response body is wrong")
 	if _, err := uuid.Parse(got.ID); err != nil {
 		t.Errorf("response body is wrong,  not UUID format: %v", got.ID)
 	}
@@ -581,6 +582,22 @@ func assertPutJobResponseBody(t *testing.T, got Job, want UpdateJobRequest) {
 	t.Helper()
 	fmt.Printf("\nINSIDE ASSERT job %#v \nwantDTO: %#v\n", got, want)
 
+}
+func assertJob(t *testing.T, got Job, want Job) {
+	t.Helper()
+
+	if got.ID != want.ID ||
+		got.Title != want.Title ||
+		got.Description != want.Description ||
+		got.Status != want.Status ||
+		got.Priority != want.Priority ||
+		got.UserID != want.UserID {
+		t.Errorf("job fields mismatch: got %#v, want %#v", got, want)
+	}
+
+	if !got.CreatedAt.Equal(want.CreatedAt) {
+		t.Errorf("createdAt mismatch: got %v, want %v", got.CreatedAt, want.CreatedAt)
+	}
 }
 
 func setupRepo(testID string) *StubJobRepository {
