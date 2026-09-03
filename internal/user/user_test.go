@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/vitor-laguardia/jobs-api/internal/shared/assert"
 )
@@ -40,6 +41,7 @@ func TestGETUser(t *testing.T) {
 		assert.Equal(t, got.Name, expected.Name, "did not get correct user Name")
 		assert.Equal(t, got.ID, expected.ID, "did not get correct userID")
 		assert.Equal(t, got.Email, expected.Email, "did not get correct user Email")
+		timeEqual(t, got.CreatedAt, expected.CreatedAt, "did not get correct user CreatedAt")
 	})
 }
 
@@ -54,10 +56,19 @@ func newStubRepository(userID string) *StubRepository {
 	return &StubRepository{
 		users: map[string]*User{
 			userID: &User{
-				ID:    userID,
-				Name:  "alfred",
-				Email: "alfred@gmail.com",
+				ID:        userID,
+				Name:      "alfred",
+				Email:     "alfred@gmail.com",
+				CreatedAt: time.Now(),
 			},
 		},
+	}
+}
+
+func timeEqual(t *testing.T, got, want time.Time, context string) {
+	t.Helper()
+
+	if !got.Equal(want) {
+		t.Errorf("%s, got: %v, want %v", context, got, want)
 	}
 }
