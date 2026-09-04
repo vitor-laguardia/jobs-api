@@ -1,6 +1,17 @@
 package user
 
-import "time"
+import (
+	"errors"
+	"time"
+)
+
+const (
+	MsgNotFound = "user not found"
+)
+
+var (
+	ErrNotFound = errors.New(MsgNotFound)
+)
 
 type User struct {
 	ID        string    `json:"id"`
