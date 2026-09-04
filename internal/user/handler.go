@@ -26,6 +26,7 @@ func (h *Handler) getUser(w http.ResponseWriter, r *http.Request) {
 	userID := r.PathValue("id")
 	user := h.service.GetByID(userID)
 
+	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(user)
 }

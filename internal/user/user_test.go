@@ -37,6 +37,7 @@ func TestGETUser(t *testing.T) {
 		expected := *repo.users[testUserID]
 
 		assert.Equal(t, res.Code, http.StatusOK, "did not get correct response status code")
+		assert.Equal(t, res.Header().Get("content-type"), "application/json", "wrong content type format")
 		assert.JSONDecode(t, res.Body, &got)
 		assert.Equal(t, got.Name, expected.Name, "did not get correct user Name")
 		assert.Equal(t, got.ID, expected.ID, "did not get correct userID")
