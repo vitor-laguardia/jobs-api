@@ -3,6 +3,8 @@ package user
 import (
 	"errors"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 const (
@@ -18,4 +20,12 @@ type User struct {
 	Name      string    `json:"name"`
 	Email     string    `json:"email"`
 	CreatedAt time.Time `json:"created_at"`
+}
+
+func NewUser(name, email string) User {
+	return User{
+		ID:    uuid.New().String(),
+		Name:  name,
+		Email: email,
+	}
 }

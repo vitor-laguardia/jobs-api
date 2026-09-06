@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/vitor-laguardia/jobs-api/internal/shared/httputil"
+	"github.com/vitor-laguardia/jobs-api/internal/shared/api"
 )
 
 type Handler struct {
@@ -16,6 +16,7 @@ func NewHandler(service *Service) *Handler {
 	h := &Handler{service: service}
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /users/{id}", h.getUser)
+	mux.HandleFunc("POST /users", h.postUser)
 	h.router = mux
 	return h
 }
@@ -29,7 +30,7 @@ func (h *Handler) getUser(w http.ResponseWriter, r *http.Request) {
 	user, err := h.service.GetByID(userID)
 
 	if err != nil {
-		errRes := httputil.NewErrorResponse(err.Error(), http.StatusNotFound, nil)
+		errRes := api.NewErrorResponse(err.Error(), http.StatusNotFound, nil)
 		w.WriteHeader(errRes.Status)
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(errRes)
@@ -39,4 +40,15 @@ func (h *Handler) getUser(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(user)
+}
+
+func (h *Handler) postUser(w http.ResponseWriter, r *http.Request) {
+	//TODO: check err
+	userInput, _ := api.DecodeValid[CreateUserRequest](w, r)
+
+	//TODO: check err
+	newUser := h.service.Create(userInput)
+
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(newUser)
 }
