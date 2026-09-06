@@ -10,8 +10,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/vitor-laguardia/jobs-api/internal/shared/api"
 	"github.com/vitor-laguardia/jobs-api/internal/shared/assert"
-	"github.com/vitor-laguardia/jobs-api/internal/shared/httputil"
 )
 
 type StubJobRepository struct {
@@ -86,7 +86,7 @@ func TestGETJob(t *testing.T) {
 		req.SetPathValue("id", fakeJobID)
 		jobHandler.ServeHTTP(res, req)
 
-		var got httputil.ErrorResponse
+		var got api.ErrorResponse
 
 		assert.Equal(t, res.Code, http.StatusNotFound, "did not get correct response status code")
 		assert.Equal(t, res.Header().Get("content-type"), "application/json", "wrong content type format")
@@ -163,11 +163,11 @@ func TestPostJob(t *testing.T) {
 
 			jh.ServeHTTP(res, req)
 
-			var got httputil.ErrorResponse
+			var got api.ErrorResponse
 			assert.Equal(t, res.Code, tt.wantStatus, "did not get correct response status code")
 			assert.Equal(t, res.Header().Get("content-type"), "application/json", "wrong content type format")
 			assert.JSONDecode(t, res.Body, &got)
-			assert.Equal(t, got.Message, httputil.MsgInvalidReqPayload, "wrong message in error response")
+			assert.Equal(t, got.Message, api.MsgInvalidReqPayload, "wrong message in error response")
 			for key, errMsg := range got.Errors {
 				assert.Equal(t, key, tt.wantKey, "wrong Key in error response")
 				assert.Equal(t, errMsg, tt.wantMessage, "wrong error message in response body")
@@ -196,7 +196,7 @@ func TestPayload(t *testing.T) {
 			needSprintf: false,
 			formatValue: 0,
 			wantStatus:  http.StatusBadRequest,
-			wantMessage: httputil.MsgEmptyBody,
+			wantMessage: api.MsgEmptyBody,
 		},
 		{
 			name:        "request with unclosed json",
@@ -204,7 +204,7 @@ func TestPayload(t *testing.T) {
 			needSprintf: false,
 			formatValue: 0,
 			wantStatus:  http.StatusBadRequest,
-			wantMessage: httputil.MsgUnexpectedEOF,
+			wantMessage: api.MsgUnexpectedEOF,
 		},
 		{
 			name:        "request with syntax error",
@@ -212,7 +212,7 @@ func TestPayload(t *testing.T) {
 			needSprintf: true,
 			formatValue: 12,
 			wantStatus:  http.StatusBadRequest,
-			wantMessage: httputil.MsgSyntaxErr,
+			wantMessage: api.MsgSyntaxErr,
 		},
 		{
 			name:        "request with unknown json field",
@@ -220,7 +220,7 @@ func TestPayload(t *testing.T) {
 			needSprintf: true,
 			formatValue: `"badField"`,
 			wantStatus:  http.StatusBadRequest,
-			wantMessage: httputil.MsgUnknownField,
+			wantMessage: api.MsgUnknownField,
 		},
 		{
 			name:        "request with more then one body",
@@ -228,7 +228,7 @@ func TestPayload(t *testing.T) {
 			needSprintf: false,
 			formatValue: 0,
 			wantStatus:  http.StatusBadRequest,
-			wantMessage: httputil.MsgMultipleReqBody,
+			wantMessage: api.MsgMultipleReqBody,
 		},
 	}
 
@@ -239,7 +239,7 @@ func TestPayload(t *testing.T) {
 
 			jh.ServeHTTP(res, req)
 
-			var got httputil.ErrorResponse
+			var got api.ErrorResponse
 			assert.JSONDecode(t, res.Body, &got)
 
 			wantMessage := func() string {
@@ -260,8 +260,8 @@ func TestPayload(t *testing.T) {
 
 		jh.ServeHTTP(res, req)
 
-		var got httputil.ErrorResponse
-		want := fmt.Sprintf(httputil.MsgWrongFieldType, "title", 13)
+		var got api.ErrorResponse
+		want := fmt.Sprintf(api.MsgWrongFieldType, "title", 13)
 
 		assert.Equal(t, res.Code, http.StatusBadRequest, "did not get correct response status code")
 		assert.JSONDecode(t, res.Body, &got)
@@ -269,7 +269,7 @@ func TestPayload(t *testing.T) {
 	})
 
 	t.Run("request body with 1MB", func(t *testing.T) {
-		largePadding := strings.Repeat("a", httputil.MaxBodyBytes+1)
+		largePadding := strings.Repeat("a", api.MaxBodyBytes+1)
 		largeJSON := fmt.Sprintf(`{"title": "%s"}`, largePadding)
 		limitExceededBody := strings.NewReader(largeJSON)
 		req := httptest.NewRequest(http.MethodPost, "/jobs", limitExceededBody)
@@ -277,8 +277,8 @@ func TestPayload(t *testing.T) {
 
 		jh.ServeHTTP(res, req)
 
-		var got httputil.ErrorResponse
-		want := fmt.Sprintf(httputil.MsgMaxBodyBytes, httputil.MaxBodyBytes)
+		var got api.ErrorResponse
+		want := fmt.Sprintf(api.MsgMaxBodyBytes, api.MaxBodyBytes)
 
 		assert.JSONDecode(t, res.Body, &got)
 
@@ -294,11 +294,11 @@ func TestPayload(t *testing.T) {
 
 		jh.ServeHTTP(res, req)
 
-		var got httputil.ErrorResponse
+		var got api.ErrorResponse
 		assert.JSONDecode(t, res.Body, &got)
 
 		assert.Equal(t, res.Code, http.StatusUnsupportedMediaType, "did not get correct response status code")
-		assert.Equal(t, got.Message, httputil.MsgUnexpectedContentType, "wrong error message in response body")
+		assert.Equal(t, got.Message, api.MsgUnexpectedContentType, "wrong error message in response body")
 
 	})
 
@@ -308,11 +308,11 @@ func TestPayload(t *testing.T) {
 
 		jh.ServeHTTP(res, req)
 
-		var got httputil.ErrorResponse
+		var got api.ErrorResponse
 
 		assert.JSONDecode(t, res.Body, &got)
 		assert.Equal(t, res.Code, http.StatusInternalServerError, "did not get correct response status code")
-		assert.Equal(t, got.Message, httputil.MsgJSONError, "wrong error message in response body")
+		assert.Equal(t, got.Message, api.MsgJSONError, "wrong error message in response body")
 	})
 }
 
@@ -408,15 +408,15 @@ func TestPUTJob(t *testing.T) {
 
 		jh.ServeHTTP(res, req)
 
-		var got httputil.ErrorResponse
+		var got api.ErrorResponse
 		assert.JSONDecode(t, res.Body, &got)
 		assert.Equal(t, res.Code, http.StatusUnprocessableEntity, "did not get correct response status code")
 
 		assert.Equal(t, res.Header().Get("content-type"), "application/json", "wrong content type format")
-		assert.Equal(t, got.Message, httputil.MsgInvalidReqPayload, "wrong Message in httputil.ErrorResponse body")
+		assert.Equal(t, got.Message, api.MsgInvalidReqPayload, "wrong Message in api.ErrorResponse body")
 		for key, errMsg := range got.Errors {
-			assert.Equal(t, key, KeyBody, "wrong Key in httputil.ErrorResponse.Errors")
-			assert.Equal(t, errMsg, MsgEmptyJSONBody, "wrong Message in httputil.ErrorResponse.Errors")
+			assert.Equal(t, key, KeyBody, "wrong Key in api.ErrorResponse.Errors")
+			assert.Equal(t, errMsg, MsgEmptyJSONBody, "wrong Message in api.ErrorResponse.Errors")
 		}
 	})
 
@@ -431,16 +431,16 @@ func TestPUTJob(t *testing.T) {
 
 		jh.ServeHTTP(res, req)
 
-		var got httputil.ErrorResponse
+		var got api.ErrorResponse
 		assert.JSONDecode(t, res.Body, &got)
 
 		assert.Equal(t, res.Code, http.StatusUnprocessableEntity, "did not get correct response status code")
 
 		assert.Equal(t, res.Header().Get("content-type"), "application/json", "wrong content type format")
-		assert.Equal(t, got.Message, httputil.MsgInvalidReqPayload, "wrong Message in httputil.ErrorResponse body")
+		assert.Equal(t, got.Message, api.MsgInvalidReqPayload, "wrong Message in api.ErrorResponse body")
 		for key, errMsg := range got.Errors {
-			assert.Equal(t, key, KeyPriority, "wrong Key in httputil.ErrorResponse.Errors")
-			assert.Equal(t, errMsg, MsgPriorityOutOfRange, "wrong message in httputil.ErrorResponse.Errors")
+			assert.Equal(t, key, KeyPriority, "wrong Key in api.ErrorResponse.Errors")
+			assert.Equal(t, errMsg, MsgPriorityOutOfRange, "wrong message in api.ErrorResponse.Errors")
 		}
 	})
 
@@ -455,16 +455,16 @@ func TestPUTJob(t *testing.T) {
 
 		jh.ServeHTTP(res, req)
 
-		var got httputil.ErrorResponse
+		var got api.ErrorResponse
 		assert.JSONDecode(t, res.Body, &got)
 
 		assert.Equal(t, res.Code, http.StatusUnprocessableEntity, "did not get correct response status code")
 
 		assert.Equal(t, res.Header().Get("content-type"), "application/json", "wrong content type format")
-		assert.Equal(t, got.Message, httputil.MsgInvalidReqPayload, "wrong Message in httputil.ErrorResponse body")
+		assert.Equal(t, got.Message, api.MsgInvalidReqPayload, "wrong Message in api.ErrorResponse body")
 		for key, errMsg := range got.Errors {
-			assert.Equal(t, key, KeyStatus, "wrong Key in httputil.ErrorResponse.Errors")
-			assert.Equal(t, errMsg, MsgInvalidStatus, "wrong message in httputil.ErrorResponse.Errors")
+			assert.Equal(t, key, KeyStatus, "wrong Key in api.ErrorResponse.Errors")
+			assert.Equal(t, errMsg, MsgInvalidStatus, "wrong message in api.ErrorResponse.Errors")
 		}
 	})
 
@@ -479,13 +479,13 @@ func TestPUTJob(t *testing.T) {
 
 		jh.ServeHTTP(res, req)
 
-		var got httputil.ErrorResponse
+		var got api.ErrorResponse
 		assert.JSONDecode(t, res.Body, &got)
 
 		assert.Equal(t, res.Code, http.StatusUnprocessableEntity, "did not get correct response status code")
 
 		assert.Equal(t, res.Header().Get("content-type"), "application/json", "wrong content type format")
-		assert.Equal(t, got.Message, MsgInvalidStatusTransition, "wrong Message in httputil.ErrorResponse body")
+		assert.Equal(t, got.Message, MsgInvalidStatusTransition, "wrong Message in api.ErrorResponse body")
 	})
 
 	t.Run("update non-existent job", func(t *testing.T) {
@@ -500,11 +500,11 @@ func TestPUTJob(t *testing.T) {
 
 		jobHandler.ServeHTTP(res, req)
 
-		var got httputil.ErrorResponse
+		var got api.ErrorResponse
 		assert.JSONDecode(t, res.Body, &got)
 		assert.Equal(t, res.Code, http.StatusBadRequest, "did not get correct response status code")
 		assert.Equal(t, res.Header().Get("content-type"), "application/json", "wrong content type format")
-		assert.Equal(t, got.Message, MsgJobNotFound, "wrong Message in httputil.ErrorResponse body")
+		assert.Equal(t, got.Message, MsgJobNotFound, "wrong Message in api.ErrorResponse body")
 	})
 }
 

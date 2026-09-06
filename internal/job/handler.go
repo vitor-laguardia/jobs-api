@@ -5,7 +5,7 @@ import (
 	"errors"
 	"net/http"
 
-	"github.com/vitor-laguardia/jobs-api/internal/shared/httputil"
+	"github.com/vitor-laguardia/jobs-api/internal/shared/api"
 )
 
 type JobHandler struct {
@@ -34,7 +34,7 @@ func (jh *JobHandler) getJob(w http.ResponseWriter, r *http.Request) {
 	job, err := jh.service.GetByID(jobID)
 
 	if err != nil {
-		errRes := httputil.NewErrorResponse(err.Error(), http.StatusNotFound, nil)
+		errRes := api.NewErrorResponse(err.Error(), http.StatusNotFound, nil)
 		w.WriteHeader(errRes.Status)
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(errRes)
@@ -46,7 +46,7 @@ func (jh *JobHandler) getJob(w http.ResponseWriter, r *http.Request) {
 }
 
 func (jh *JobHandler) postJob(w http.ResponseWriter, r *http.Request) {
-	jobReq, errResp := httputil.DecodeValid[CreateJobRequest](w, r)
+	jobReq, errResp := api.DecodeValid[CreateJobRequest](w, r)
 
 	if errResp != nil {
 		w.Header().Set("Content-Type", "application/json")
@@ -63,7 +63,7 @@ func (jh *JobHandler) postJob(w http.ResponseWriter, r *http.Request) {
 }
 
 func (jh *JobHandler) updateJob(w http.ResponseWriter, r *http.Request) {
-	jobReq, errResp := httputil.DecodeValid[UpdateJobRequest](w, r)
+	jobReq, errResp := api.DecodeValid[UpdateJobRequest](w, r)
 
 	if errResp != nil {
 		w.WriteHeader(errResp.Status)
@@ -76,12 +76,12 @@ func (jh *JobHandler) updateJob(w http.ResponseWriter, r *http.Request) {
 	updatedJob, err := jh.service.Update(jobID, jobReq)
 
 	if err != nil {
-		var errRes *httputil.ErrorResponse
+		var errRes *api.ErrorResponse
 		switch {
 		case errors.Is(err, ErrJobNotFound):
-			errRes = httputil.NewErrorResponse(err.Error(), http.StatusBadRequest, nil)
+			errRes = api.NewErrorResponse(err.Error(), http.StatusBadRequest, nil)
 		case errors.Is(err, ErrJobStatusTransition):
-			errRes = httputil.NewErrorResponse(err.Error(), http.StatusUnprocessableEntity, nil)
+			errRes = api.NewErrorResponse(err.Error(), http.StatusUnprocessableEntity, nil)
 		}
 
 		w.Header().Set("content-type", "application/json")
@@ -98,7 +98,7 @@ func (jh *JobHandler) deleteJob(w http.ResponseWriter, r *http.Request) {
 	jobID := r.PathValue("id")
 
 	if err := jh.service.Delete(jobID); err != nil {
-		errRes := httputil.NewErrorResponse(err.Error(), http.StatusNotFound, nil)
+		errRes := api.NewErrorResponse(err.Error(), http.StatusNotFound, nil)
 		w.WriteHeader(errRes.Status)
 		w.Header().Set("content-type", "application/json")
 		json.NewEncoder(w).Encode(errRes)
