@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/vitor-laguardia/jobs-api/internal/shared/api"
 	"github.com/vitor-laguardia/jobs-api/internal/shared/assert"
 )
@@ -75,15 +76,12 @@ func TestGET(t *testing.T) {
 }
 
 func TestPOST(t *testing.T) {
-	//testUserID := "cb322-sefdau-adufba-audbfuda"
-
-	t.Run("successfuly POST User", func(t *testing.T) {
-		repo := &StubRepository{make(map[string]User)}
+	t.Run("successfully POST User", func(t *testing.T) {
+		repo := &StubRepository{users: make(map[string]User)}
 		service := newService(repo)
 		handler := NewHandler(service)
-
 		rawPayload := `{"name":"claw", "email":"claw@gmail.com"}`
-		req := httptest.NewRequest(http.MethodPost, "/users", strings.NewReader(rawPayload))
+		req := newPOSTUserHTTPRequest(rawPayload)
 		res := httptest.NewRecorder()
 
 		handler.ServeHTTP(res, req)
@@ -94,9 +92,21 @@ func TestPOST(t *testing.T) {
 		assert.Equal(t, res.Code, http.StatusCreated, "did not get correct response status code")
 		assert.JSONDecode(t, res.Body, &got)
 		assert.Unmarshal(t, rawPayload, &expected)
-		assert.Equal(t, got.Name, expected.Name, "did not get correct Name in response body")
-		assert.Equal(t, got.Email, expected.Email, "did not get correct Email in response body")
 
+		t.Run("response body is correct", func(t *testing.T) {
+			assert.Equal(t, got.Name, expected.Name, "did not get correct Name in response body")
+			assert.Equal(t, got.Email, expected.Email, "did not get correct Email in response body")
+			assertUUIDFormat(t, got.ID)
+			assertTimeFormat(t, got.CreatedAt)
+		})
+
+		t.Run("user is correctly persisted in repository", func(t *testing.T) {
+			userStub := repo.users[got.ID]
+			assert.Equal(t, got.Name, userStub.Name, "user Name was not correctly persisted in repository")
+			assert.Equal(t, got.ID, userStub.ID, "user ID was not correctly persisted in repository")
+			assert.Equal(t, got.Email, userStub.Email, "user Email was not correctly persisted in repository")
+			assertTimeEqual(t, got.CreatedAt, userStub.CreatedAt, "user CreatedAt was not correctly persisted in repository")
+		})
 	})
 }
 
@@ -104,6 +114,11 @@ func newGETUserHTTPRequest(userID string) *http.Request {
 	path := fmt.Sprintf("/users/%s", userID)
 	req := httptest.NewRequest(http.MethodGet, path, nil)
 	req.SetPathValue("id", userID)
+	return req
+}
+
+func newPOSTUserHTTPRequest(rawPayload string) *http.Request {
+	req := httptest.NewRequest(http.MethodPost, "/users", strings.NewReader(rawPayload))
 	return req
 }
 
@@ -125,5 +140,19 @@ func assertTimeEqual(t *testing.T, got, want time.Time, context string) {
 
 	if !got.Equal(want) {
 		t.Errorf("%s, got: %v, want %v", context, got, want)
+	}
+}
+
+func assertUUIDFormat(t *testing.T, id string) {
+	t.Helper()
+
+	if _, err := uuid.Parse(id); err != nil {
+		t.Errorf("user ID is not in correct UUID format: %v", id)
+	}
+}
+
+func assertTimeFormat(t *testing.T, time time.Time) {
+	if time.IsZero() {
+		t.Errorf("did not get correct CreatedAt in response body. It should not be zero")
 	}
 }

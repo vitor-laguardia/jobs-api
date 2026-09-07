@@ -24,8 +24,9 @@ type User struct {
 
 func NewUser(name, email string) User {
 	return User{
-		ID:    uuid.New().String(),
-		Name:  name,
-		Email: email,
+		ID:        uuid.New().String(),
+		Name:      name,
+		Email:     email,
+		CreatedAt: time.Now(),
 	}
 }
