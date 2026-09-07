@@ -47,6 +47,7 @@ func (h *Handler) postUser(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		w.WriteHeader(err.Status)
+		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(err)
 		return
 	}
@@ -54,5 +55,6 @@ func (h *Handler) postUser(w http.ResponseWriter, r *http.Request) {
 	newUser := h.service.Create(userInput)
 
 	w.WriteHeader(http.StatusCreated)
+	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(newUser)
 }

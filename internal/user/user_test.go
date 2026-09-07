@@ -88,6 +88,7 @@ func TestPOST(t *testing.T) {
 		var expected CreateUserRequest
 
 		assert.Equal(t, res.Code, http.StatusCreated, "did not get correct response status code")
+		assert.Equal(t, res.Header().Get("content-type"), "application/json", "wrong content type format")
 		assert.JSONDecode(t, res.Body, &got)
 		assert.Unmarshal(t, rawPayload, &expected)
 
@@ -146,6 +147,7 @@ func TestPOST(t *testing.T) {
 
 				var got api.ErrorResponse
 				assert.Equal(t, res.Code, http.StatusUnprocessableEntity, "did not get correct response status code")
+				assert.Equal(t, res.Header().Get("content-type"), "application/json", "wrong content type format")
 				assert.JSONDecode(t, res.Body, &got)
 				assert.Equal(t, got.Message, api.MsgInvalidReqPayload, "wrong error Message in api.ErrorResponse")
 
@@ -165,6 +167,8 @@ func TestPOST(t *testing.T) {
 			var got api.ErrorResponse
 
 			assert.Equal(t, res.Code, http.StatusUnprocessableEntity, "did not get correct response status code")
+
+			assert.Equal(t, res.Header().Get("content-type"), "application/json", "wrong content type format")
 			assert.JSONDecode(t, res.Body, &got)
 			assert.Equal(t, got.Message, api.MsgInvalidReqPayload, "wrong 'Message' field in api.ErrorResponse")
 
