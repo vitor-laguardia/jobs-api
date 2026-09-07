@@ -43,10 +43,14 @@ func (h *Handler) getUser(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) postUser(w http.ResponseWriter, r *http.Request) {
-	//TODO: check err
-	userInput, _ := api.DecodeValid[CreateUserRequest](w, r)
+	userInput, err := api.DecodeValid[CreateUserRequest](w, r)
 
-	//TODO: check err
+	if err != nil {
+		w.WriteHeader(err.Status)
+		json.NewEncoder(w).Encode(err)
+		return
+	}
+
 	newUser := h.service.Create(userInput)
 
 	w.WriteHeader(http.StatusCreated)

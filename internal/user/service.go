@@ -15,16 +15,17 @@ func newService(repo Repository) *Service {
 
 func (s *Service) GetByID(userID string) (User, error) {
 	user, err := s.repo.GetByID(userID)
+
 	if err != nil {
 		return User{}, err
 	}
+
 	return user, nil
 }
 
 func (s *Service) Create(reqInput CreateUserRequest) User {
 	user := NewUser(reqInput.Name, reqInput.Email)
 
-	//TODO handle err
 	newUser := s.repo.Create(user)
 
 	return newUser

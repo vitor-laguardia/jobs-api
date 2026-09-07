@@ -17,19 +17,17 @@ type StubRepository struct {
 	users map[string]User
 }
 
-// TODO: change to sr StubRepository
 func (sr *StubRepository) GetByID(userID string) (User, error) {
-
 	user, exists := sr.users[userID]
 
 	if !exists {
 		return User{}, ErrNotFound
 	}
+
 	return user, nil
 }
 
 func (sr *StubRepository) Create(user User) User {
-	// TODO check nil
 	sr.users[user.ID] = user
 	return user
 }
@@ -106,6 +104,77 @@ func TestPOST(t *testing.T) {
 			assert.Equal(t, got.ID, userStub.ID, "user ID was not correctly persisted in repository")
 			assert.Equal(t, got.Email, userStub.Email, "user Email was not correctly persisted in repository")
 			assertTimeEqual(t, got.CreatedAt, userStub.CreatedAt, "user CreatedAt was not correctly persisted in repository")
+		})
+	})
+
+	t.Run("validates disallowed payload values", func(t *testing.T) {
+		repo := &StubRepository{users: make(map[string]User)}
+		service := newService(repo)
+		handler := NewHandler(service)
+
+		testCases := []struct {
+			name        string
+			rawPayload  string
+			errorKey    string
+			wantMessage string
+		}{
+			{
+				name:        "missing name",
+				rawPayload:  `{"name":"" }`,
+				errorKey:    keyName,
+				wantMessage: MsgNameRequired,
+			},
+			{
+				name:        "missing email",
+				rawPayload:  `{"email":"" }`,
+				errorKey:    keyEmail,
+				wantMessage: MsgEmailRequired,
+			},
+			{
+				name:        "wrong email format",
+				rawPayload:  `{"email":"test@com" }`,
+				errorKey:    keyEmail,
+				wantMessage: MsgWrongEmailFormat,
+			},
+		}
+
+		for _, tc := range testCases {
+			t.Run(tc.name, func(t *testing.T) {
+				req := newPOSTUserHTTPRequest(tc.rawPayload)
+				res := httptest.NewRecorder()
+				handler.ServeHTTP(res, req)
+
+				var got api.ErrorResponse
+				assert.Equal(t, res.Code, http.StatusUnprocessableEntity, "did not get correct response status code")
+				assert.JSONDecode(t, res.Body, &got)
+				assert.Equal(t, got.Message, api.MsgInvalidReqPayload, "wrong error Message in api.ErrorResponse")
+
+				msg, exists := got.Errors[tc.errorKey]
+				assert.Equal(t, exists, true, "expected key in api.ErrorResponse.Errors map")
+				assert.Equal(t, msg, tc.wantMessage, "wrong error message in api.ErrorResponse.Errors")
+			})
+		}
+
+		t.Run("missing name AND email", func(t *testing.T) {
+			rawPayload := `{}`
+			req := newPOSTUserHTTPRequest(rawPayload)
+			res := httptest.NewRecorder()
+
+			handler.ServeHTTP(res, req)
+
+			var got api.ErrorResponse
+
+			assert.Equal(t, res.Code, http.StatusUnprocessableEntity, "did not get correct response status code")
+			assert.JSONDecode(t, res.Body, &got)
+			assert.Equal(t, got.Message, api.MsgInvalidReqPayload, "wrong 'Message' field in api.ErrorResponse")
+
+			nameMsg, hasName := got.Errors[keyName]
+			assert.Equal(t, hasName, true, "expected 'name' key in api.ErrorResponse.Errors map")
+			assert.Equal(t, nameMsg, MsgNameRequired, "wrong error message for 'name' field in api.ErrorResponse.Errors")
+
+			emailMsg, hasEmail := got.Errors[keyEmail]
+			assert.Equal(t, hasEmail, true, "expected 'email' key in api.ErrorResponse.Errors map")
+			assert.Equal(t, emailMsg, MsgEmailRequired, "wrong error message in api.ErrorResponse.Error")
 		})
 	})
 }
