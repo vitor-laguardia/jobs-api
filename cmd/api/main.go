@@ -8,7 +8,7 @@ import (
 	"github.com/vitor-laguardia/jobs-api/internal/user"
 )
 
-func NewServer(jobHandler *job.JobHandler, userHandler *user.Handler) *http.ServeMux {
+func NewServer(jobHandler *job.Handler, userHandler *user.Handler) *http.ServeMux {
 	mux := http.NewServeMux()
 	mux.Handle("/jobs/", jobHandler)
 	mux.Handle("/jobs", jobHandler)
@@ -18,9 +18,9 @@ func NewServer(jobHandler *job.JobHandler, userHandler *user.Handler) *http.Serv
 }
 
 func main() {
-	jobRepo := job.NewInMemoryJobs()
-	jobService := job.NewJobService(jobRepo)
-	jobHandler := job.NewJobHandler(jobService)
+	jobRepo := job.NewInMemoryRepository()
+	jobService := job.NewService(jobRepo)
+	jobHandler := job.NewHandler(jobService)
 
 	userRepo := user.NewInMemoryRepository()
 	userService := user.NewService(userRepo)

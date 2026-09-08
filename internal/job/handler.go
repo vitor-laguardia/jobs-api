@@ -8,30 +8,30 @@ import (
 	"github.com/vitor-laguardia/jobs-api/internal/shared/api"
 )
 
-type JobHandler struct {
-	service *JobService
+type Handler struct {
+	service *Service
 	router  *http.ServeMux
 }
 
-func NewJobHandler(service *JobService) *JobHandler {
-	jh := &JobHandler{service: service}
+func NewHandler(service *Service) *Handler {
+	h := &Handler{service: service}
 	mux := http.NewServeMux()
-	mux.HandleFunc("POST /jobs", jh.postJob)
-	mux.HandleFunc("PUT /jobs/{id}", jh.updateJob)
-	mux.HandleFunc("GET /jobs/{id}", jh.getJob)
-	mux.HandleFunc("DELETE /jobs/{id}", jh.deleteJob)
-	jh.router = mux
-	return jh
+	mux.HandleFunc("POST /jobs", h.postJob)
+	mux.HandleFunc("PUT /jobs/{id}", h.updateJob)
+	mux.HandleFunc("GET /jobs/{id}", h.getJob)
+	mux.HandleFunc("DELETE /jobs/{id}", h.deleteJob)
+	h.router = mux
+	return h
 }
 
-func (jh *JobHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	jh.router.ServeHTTP(w, r)
+func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	h.router.ServeHTTP(w, r)
 }
 
-func (jh *JobHandler) getJob(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) getJob(w http.ResponseWriter, r *http.Request) {
 	jobID := r.PathValue("id")
 
-	job, err := jh.service.GetByID(jobID)
+	job, err := h.service.GetByID(jobID)
 
 	if err != nil {
 		errRes := api.NewErrorResponse(err.Error(), http.StatusNotFound, nil)
@@ -45,7 +45,7 @@ func (jh *JobHandler) getJob(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(job)
 }
 
-func (jh *JobHandler) postJob(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) postJob(w http.ResponseWriter, r *http.Request) {
 	jobReq, errResp := api.DecodeValid[CreateJobRequest](w, r)
 
 	if errResp != nil {
@@ -55,14 +55,14 @@ func (jh *JobHandler) postJob(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	nj := jh.service.Create(jobReq)
+	nj := h.service.Create(jobReq)
 
 	w.WriteHeader(http.StatusCreated)
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(nj)
 }
 
-func (jh *JobHandler) updateJob(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) updateJob(w http.ResponseWriter, r *http.Request) {
 	jobReq, errResp := api.DecodeValid[UpdateJobRequest](w, r)
 
 	if errResp != nil {
@@ -73,7 +73,7 @@ func (jh *JobHandler) updateJob(w http.ResponseWriter, r *http.Request) {
 	}
 
 	jobID := r.PathValue("id")
-	updatedJob, err := jh.service.Update(jobID, jobReq)
+	updatedJob, err := h.service.Update(jobID, jobReq)
 
 	if err != nil {
 		var errRes *api.ErrorResponse
@@ -94,10 +94,10 @@ func (jh *JobHandler) updateJob(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(updatedJob)
 }
 
-func (jh *JobHandler) deleteJob(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) deleteJob(w http.ResponseWriter, r *http.Request) {
 	jobID := r.PathValue("id")
 
-	if err := jh.service.Delete(jobID); err != nil {
+	if err := h.service.Delete(jobID); err != nil {
 		errRes := api.NewErrorResponse(err.Error(), http.StatusNotFound, nil)
 		w.WriteHeader(errRes.Status)
 		w.Header().Set("content-type", "application/json")

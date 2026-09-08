@@ -11,9 +11,9 @@ import (
 )
 
 func TestPOSTJobAndGETIt(t *testing.T) {
-	jobDb := NewInMemoryJobs()
-	service := NewJobService(jobDb)
-	server := NewJobHandler(service)
+	jobDb := NewInMemoryRepository()
+	service := NewService(jobDb)
+	server := NewHandler(service)
 
 	rawPayload := `{"title":"my first job","description":"getting use with it","priority":1,"userId":"1"}`
 	POSTReq := newPOSTJobHTTPRequest(rawPayload)

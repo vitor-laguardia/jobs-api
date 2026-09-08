@@ -28,6 +28,6 @@ func (jr *JobRepository) Delete(jobID string) error {
 	return nil
 }
 
-func NewInMemoryJobs() *JobRepository {
+func NewInMemoryRepository() *JobRepository {
 	return &JobRepository{make(map[string]*Job)}
 }

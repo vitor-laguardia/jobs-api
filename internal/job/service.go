@@ -22,31 +22,31 @@ type Repository interface {
 	Delete(jobID string) error
 }
 
-type JobService struct {
+type Service struct {
 	repo Repository
 }
 
-func NewJobService(repo Repository) *JobService {
-	js := &JobService{repo}
-	return js
+func NewService(repo Repository) *Service {
+	s := &Service{repo}
+	return s
 }
 
-func (js *JobService) GetByID(id string) (*Job, error) {
-	job := js.repo.GetByID(id)
+func (s *Service) GetByID(id string) (*Job, error) {
+	job := s.repo.GetByID(id)
 	if job == nil {
 		return nil, ErrJobNotFound
 	}
 	return job, nil
 }
 
-func (js *JobService) Create(jobReq CreateJobRequest) *Job {
+func (s *Service) Create(jobReq CreateJobRequest) *Job {
 	nj := NewJob(jobReq.Title, jobReq.Description, JobPriority(jobReq.Priority), jobReq.UserID)
-	js.repo.Create(&nj)
+	s.repo.Create(&nj)
 	return &nj
 }
 
-func (js *JobService) Update(jobID string, jobReq UpdateJobRequest) (*Job, error) {
-	job := js.repo.GetByID(jobID)
+func (s *Service) Update(jobID string, jobReq UpdateJobRequest) (*Job, error) {
+	job := s.repo.GetByID(jobID)
 
 	if job == nil {
 		return nil, ErrJobNotFound
@@ -69,10 +69,10 @@ func (js *JobService) Update(jobID string, jobReq UpdateJobRequest) (*Job, error
 	}
 	job.UpdatedAt = time.Now()
 
-	updatedJob := js.repo.Update(job)
+	updatedJob := s.repo.Update(job)
 	return updatedJob, nil
 }
 
-func (js *JobService) Delete(jobID string) error {
-	return js.repo.Delete(jobID)
+func (s *Service) Delete(jobID string) error {
+	return s.repo.Delete(jobID)
 }

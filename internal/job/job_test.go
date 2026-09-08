@@ -59,8 +59,8 @@ func TestGETJob(t *testing.T) {
 	const testJobID = "b2z4x3d4-e5f6-7890-1234-56789abcdef0"
 
 	jobStub := setupRepo(testJobID)
-	service := NewJobService(jobStub)
-	jobHandler := NewJobHandler(service)
+	service := NewService(jobStub)
+	jobHandler := NewHandler(service)
 
 	t.Run("get job stub", func(t *testing.T) {
 		req := newGETJobHTTPRequest(testJobID)
@@ -98,8 +98,8 @@ func TestGETJob(t *testing.T) {
 
 func TestPostJob(t *testing.T) {
 	stubRepo := &StubJobRepository{make(map[string]*Job)}
-	s := NewJobService(stubRepo)
-	jh := NewJobHandler(s)
+	s := NewService(stubRepo)
+	jh := NewHandler(s)
 
 	t.Run("it returns the new job as JSON", func(t *testing.T) {
 		rawPayload := `{"title": "POST job", "description": "Job for testing purpose", "priority": 2, "userId": "1"}`
@@ -179,8 +179,8 @@ func TestPostJob(t *testing.T) {
 
 func TestPayload(t *testing.T) {
 	stubRepo := &StubJobRepository{make(map[string]*Job)}
-	s := NewJobService(stubRepo)
-	jh := NewJobHandler(s)
+	s := NewService(stubRepo)
+	jh := NewHandler(s)
 
 	tableTests := []struct {
 		name        string
@@ -379,8 +379,8 @@ func TestPUTJob(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			stubRepo := setupRepo(testJobID)
-			s := NewJobService(stubRepo)
-			jh := NewJobHandler(s)
+			s := NewService(stubRepo)
+			jh := NewHandler(s)
 			original := *stubRepo.jobs[testJobID]
 
 			req := newPUTJobHTTPRequest(testJobID, tc.rawPayload)
@@ -399,8 +399,8 @@ func TestPUTJob(t *testing.T) {
 
 	t.Run("returns 422 on empty JSON body", func(t *testing.T) {
 		stubRepo := &StubJobRepository{make(map[string]*Job)}
-		s := NewJobService(stubRepo)
-		jh := NewJobHandler(s)
+		s := NewService(stubRepo)
+		jh := NewHandler(s)
 
 		rawPayload := `{}`
 		req := newPUTJobHTTPRequest(testJobID, rawPayload)
@@ -422,8 +422,8 @@ func TestPUTJob(t *testing.T) {
 
 	t.Run("priority out of range", func(t *testing.T) {
 		stubRepo := &StubJobRepository{make(map[string]*Job)}
-		s := NewJobService(stubRepo)
-		jh := NewJobHandler(s)
+		s := NewService(stubRepo)
+		jh := NewHandler(s)
 
 		rawPayload := `{"priority": -1}`
 		req := newPUTJobHTTPRequest(testJobID, rawPayload)
@@ -446,8 +446,8 @@ func TestPUTJob(t *testing.T) {
 
 	t.Run("invalid status value", func(t *testing.T) {
 		stubRepo := &StubJobRepository{make(map[string]*Job)}
-		s := NewJobService(stubRepo)
-		jh := NewJobHandler(s)
+		s := NewService(stubRepo)
+		jh := NewHandler(s)
 
 		rawPayload := `{"status": "test"}`
 		req := newPUTJobHTTPRequest(testJobID, rawPayload)
@@ -470,8 +470,8 @@ func TestPUTJob(t *testing.T) {
 
 	t.Run("invalid status transition", func(t *testing.T) {
 		stubRepo := setupRepo(testJobID)
-		s := NewJobService(stubRepo)
-		jh := NewJobHandler(s)
+		s := NewService(stubRepo)
+		jh := NewHandler(s)
 
 		rawPayload := `{"status": "done"}`
 		req := newPUTJobHTTPRequest(testJobID, rawPayload)
@@ -491,8 +491,8 @@ func TestPUTJob(t *testing.T) {
 	t.Run("update non-existent job", func(t *testing.T) {
 		fakeJobID := "v2y4x5d4-e5f6-7890-1234-56789abcdef0"
 		stubRepo := setupRepo(testJobID)
-		service := NewJobService(stubRepo)
-		jobHandler := NewJobHandler(service)
+		service := NewService(stubRepo)
+		jobHandler := NewHandler(service)
 
 		rawPayload := `{"title": "another title", "description": "another description", "priority": 3, "status": "running"}`
 		req := newPUTJobHTTPRequest(fakeJobID, rawPayload)
@@ -513,8 +513,8 @@ func TestDELETEJob(t *testing.T) {
 
 	t.Run("successfuly delete a job", func(t *testing.T) {
 		stubRepo := setupRepo(testJobID)
-		service := NewJobService(stubRepo)
-		jobHandler := NewJobHandler(service)
+		service := NewService(stubRepo)
+		jobHandler := NewHandler(service)
 
 		req := newDELETEJobHTTPRequest(testJobID)
 		res := httptest.NewRecorder()
@@ -527,8 +527,8 @@ func TestDELETEJob(t *testing.T) {
 	})
 	t.Run("receive error when delete non-existent job", func(t *testing.T) {
 		stubRepo := &StubJobRepository{make(map[string]*Job)}
-		service := NewJobService(stubRepo)
-		jobHandler := NewJobHandler(service)
+		service := NewService(stubRepo)
+		jobHandler := NewHandler(service)
 
 		req := newDELETEJobHTTPRequest(testJobID)
 		res := httptest.NewRecorder()
