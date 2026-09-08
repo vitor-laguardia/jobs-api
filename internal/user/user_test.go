@@ -35,7 +35,7 @@ func (sr *StubRepository) Create(user User) User {
 func TestGET(t *testing.T) {
 	testUserID := "ab342-sbfdau-adufba-audbfuda"
 	repo := newStubRepository(testUserID)
-	service := newService(repo)
+	service := NewService(repo)
 	handler := NewHandler(service)
 
 	t.Run("get expected user", func(t *testing.T) {
@@ -76,7 +76,7 @@ func TestGET(t *testing.T) {
 func TestPOST(t *testing.T) {
 	t.Run("successfully POST User", func(t *testing.T) {
 		repo := &StubRepository{users: make(map[string]User)}
-		service := newService(repo)
+		service := NewService(repo)
 		handler := NewHandler(service)
 		rawPayload := `{"name":"claw", "email":"claw@gmail.com"}`
 		req := newPOSTUserHTTPRequest(rawPayload)
@@ -110,7 +110,7 @@ func TestPOST(t *testing.T) {
 
 	t.Run("validates disallowed payload values", func(t *testing.T) {
 		repo := &StubRepository{users: make(map[string]User)}
-		service := newService(repo)
+		service := NewService(repo)
 		handler := NewHandler(service)
 
 		testCases := []struct {
