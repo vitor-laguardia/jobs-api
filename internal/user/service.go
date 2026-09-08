@@ -4,6 +4,7 @@ type Repository interface {
 	GetByID(userID string) (User, error)
 	Create(user User) User
 	Update(user User) User
+	Delete(userID string) error
 }
 
 type Service struct {
@@ -44,4 +45,8 @@ func (s *Service) Update(userID string, reqInput UpdateUserRequest) (User, error
 
 	updatedUser := s.repo.Update(user)
 	return updatedUser, nil
+}
+
+func (s *Service) Delete(userID string) error {
+	return s.repo.Delete(userID)
 }

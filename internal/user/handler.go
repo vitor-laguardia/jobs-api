@@ -17,6 +17,7 @@ func NewHandler(service *Service) *Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /users/{id}", h.getUser)
 	mux.HandleFunc("PUT /users/{id}", h.putUser)
+	mux.HandleFunc("DELETE /users/{id}", h.deleteUser)
 	mux.HandleFunc("POST /users", h.postUser)
 	h.router = mux
 	return h
@@ -83,4 +84,20 @@ func (h *Handler) putUser(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(newUser)
+}
+
+func (h *Handler) deleteUser(w http.ResponseWriter, r *http.Request) {
+	userID := r.PathValue("id")
+
+	if err := h.service.Delete(userID); err != nil {
+		errRes := api.NewErrorResponse(err.Error(), http.StatusNotFound, nil)
+		w.WriteHeader(errRes.Status)
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(errRes)
+		return
+
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusNoContent)
 }

@@ -37,6 +37,14 @@ func (sr *StubRepository) Update(user User) User {
 	return user
 }
 
+func (sr *StubRepository) Delete(userID string) error {
+	if _, exists := sr.users[userID]; !exists {
+		return ErrNotFound
+	}
+	delete(sr.users, userID)
+	return nil
+}
+
 func TestGET(t *testing.T) {
 	testUserID := "ab342-sbfdau-adufba-audbfuda"
 	repo := newStubRepository(testUserID)
@@ -262,7 +270,43 @@ func TestPUT(t *testing.T) {
 			assert.Equal(t, nameMsg, MsgNameRequired, "wrong error message for 'name' field in api.ErrorResponse.Errors")
 		})
 	})
+}
 
+func TestDELETE(t *testing.T) {
+	testUserID := "an142-sbfdau-adufba-audbfuda"
+	t.Run("succesfully delete user", func(t *testing.T) {
+		repo := newStubRepository(testUserID)
+		service := NewService(repo)
+		handler := NewHandler(service)
+
+		req := newDELETEUserHTTPRequest(testUserID)
+		res := httptest.NewRecorder()
+
+		handler.ServeHTTP(res, req)
+
+		assert.Equal(t, res.Code, http.StatusNoContent, "did not get correct response status code")
+		assert.Equal(t, res.Header().Get("content-type"), "application/json", "wrong content type format")
+		expected := repo.users[testUserID]
+		assert.Equal(t, expected, User{}, "user was not properly deleted")
+	})
+
+	t.Run("receive error when delete non-existent user", func(t *testing.T) {
+		repo := &StubRepository{make(map[string]User)}
+		service := NewService(repo)
+		handler := NewHandler(service)
+
+		req := newDELETEUserHTTPRequest(testUserID)
+		res := httptest.NewRecorder()
+
+		handler.ServeHTTP(res, req)
+
+		var got api.ErrorResponse
+
+		assert.Equal(t, res.Code, http.StatusNotFound, "did not get correct response status code")
+		assert.Equal(t, res.Header().Get("content-type"), "application/json", "wrong content type format")
+		assert.JSONDecode(t, res.Body, &got)
+		assert.Equal(t, got.Message, MsgNotFound, "did not get correct Message in ErrorResponse")
+	})
 }
 
 func newGETUserHTTPRequest(userID string) *http.Request {
@@ -280,6 +324,13 @@ func newPOSTUserHTTPRequest(rawPayload string) *http.Request {
 func newPUTUserHTTPRequest(userID, rawPayload string) *http.Request {
 	path := fmt.Sprintf("/users/%s", userID)
 	req := httptest.NewRequest(http.MethodPut, path, strings.NewReader(rawPayload))
+	req.SetPathValue("id", userID)
+	return req
+}
+
+func newDELETEUserHTTPRequest(userID string) *http.Request {
+	path := fmt.Sprintf("/users/%s", userID)
+	req := httptest.NewRequest(http.MethodDelete, path, nil)
 	req.SetPathValue("id", userID)
 	return req
 }
