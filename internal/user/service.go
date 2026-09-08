@@ -3,6 +3,7 @@ package user
 type Repository interface {
 	GetByID(userID string) (User, error)
 	Create(user User) User
+	Update(user User) User
 }
 
 type Service struct {
@@ -27,6 +28,20 @@ func (s *Service) Create(reqInput CreateUserRequest) User {
 	user := NewUser(reqInput.Name, reqInput.Email)
 
 	newUser := s.repo.Create(user)
-
 	return newUser
+}
+
+func (s *Service) Update(userID string, reqInput UpdateUserRequest) (User, error) {
+	user, err := s.repo.GetByID(userID)
+
+	if err != nil {
+		return User{}, err
+	}
+
+	if reqInput.Name != "" {
+		user.Name = reqInput.Name
+	}
+
+	updatedUser := s.repo.Update(user)
+	return updatedUser, nil
 }

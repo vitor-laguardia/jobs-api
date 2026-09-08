@@ -7,6 +7,10 @@ type CreateUserRequest struct {
 	Email string `json:"email"`
 }
 
+type UpdateUserRequest struct {
+	Name string `json:"name"`
+}
+
 const (
 	keyName             = "name"
 	MsgNameRequired     = "name is required"
@@ -35,6 +39,16 @@ func (cr CreateUserRequest) Valid() (problems map[string]string) {
 		problems[keyEmail] = MsgEmailRequired
 	case !isEmailValidRegex(cr.Email):
 		problems[keyEmail] = MsgWrongEmailFormat
+	}
+
+	return
+}
+
+func (ur UpdateUserRequest) Valid() (problems map[string]string) {
+	problems = make(map[string]string)
+
+	if ur.Name == "" {
+		problems[keyName] = MsgNameRequired
 	}
 
 	return

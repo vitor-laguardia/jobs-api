@@ -16,6 +16,7 @@ func NewHandler(service *Service) *Handler {
 	h := &Handler{service: service}
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /users/{id}", h.getUser)
+	mux.HandleFunc("PUT /users/{id}", h.putUser)
 	mux.HandleFunc("POST /users", h.postUser)
 	h.router = mux
 	return h
@@ -56,5 +57,30 @@ func (h *Handler) postUser(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusCreated)
 	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(newUser)
+}
+
+func (h *Handler) putUser(w http.ResponseWriter, r *http.Request) {
+	userID := r.PathValue("id")
+
+	userInput, decodeErr := api.DecodeValid[UpdateUserRequest](w, r)
+	if decodeErr != nil {
+		w.WriteHeader(decodeErr.Status)
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(decodeErr)
+		return
+	}
+
+	newUser, updateErr := h.service.Update(userID, userInput)
+	if updateErr != nil {
+		errRes := api.NewErrorResponse(updateErr.Error(), http.StatusNotFound, nil)
+		w.WriteHeader(errRes.Status)
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(errRes)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(newUser)
 }
