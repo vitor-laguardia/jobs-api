@@ -32,6 +32,19 @@ func (sr *StubRepository) Create(user User) User {
 	return user
 }
 
+func (sr *StubRepository) Update(user User) User {
+	sr.users[user.ID] = user
+	return user
+}
+
+func (sr *StubRepository) Delete(userID string) error {
+	if _, exists := sr.users[userID]; !exists {
+		return ErrNotFound
+	}
+	delete(sr.users, userID)
+	return nil
+}
+
 func TestGET(t *testing.T) {
 	testUserID := "ab342-sbfdau-adufba-audbfuda"
 	repo := newStubRepository(testUserID)
@@ -183,6 +196,119 @@ func TestPOST(t *testing.T) {
 	})
 }
 
+func TestPUT(t *testing.T) {
+	testUserID := "cb392-zbfdau-adufba-audbfuda"
+
+	t.Run("succesfully PUT user Name", func(t *testing.T) {
+		repo := newStubRepository(testUserID)
+		service := NewService(repo)
+		handler := NewHandler(service)
+
+		rawPayload := `{"name":"joseph"}`
+		req := newPUTUserHTTPRequest(testUserID, rawPayload)
+		res := httptest.NewRecorder()
+
+		handler.ServeHTTP(res, req)
+
+		var got User
+		var expected UpdateUserRequest
+
+		assert.Equal(t, res.Code, http.StatusOK, "did not get correct response status code")
+		assert.Equal(t, res.Header().Get("content-type"), "application/json", "wrong content type format")
+
+		t.Run("response body is correct", func(t *testing.T) {
+			assert.JSONDecode(t, res.Body, &got)
+			assert.Unmarshal(t, rawPayload, &expected)
+			assert.Equal(t, got.Name, expected.Name, "user Name was not correctly updated in response body")
+		})
+		t.Run("updated user is correctly persisted in repository", func(t *testing.T) {
+			updatedUser := repo.users[testUserID]
+			assert.Equal(t, updatedUser.Name, expected.Name, "user Name was not correctly persisted in repository")
+		})
+	})
+
+	t.Run("covers error scenarios", func(t *testing.T) {
+		t.Run("wrong ID", func(t *testing.T) {
+			fakeID := "aeh23-sf456-ae244-sf4"
+			repo := newStubRepository(testUserID)
+			service := NewService(repo)
+			handler := NewHandler(service)
+
+			rawPayload := `{"name":"joseph"}`
+			req := newPUTUserHTTPRequest(fakeID, rawPayload)
+			res := httptest.NewRecorder()
+
+			handler.ServeHTTP(res, req)
+
+			var got api.ErrorResponse
+
+			assert.Equal(t, res.Code, http.StatusNotFound, "did not get correct response status code")
+			assert.Equal(t, res.Header().Get("content-type"), "application/json", "wrong content type format")
+			assert.JSONDecode(t, res.Body, &got)
+			assert.Equal(t, got.Message, MsgNotFound, "wrong Message in ErrorResponse")
+		})
+
+		t.Run("missing Name", func(t *testing.T) {
+			repo := newStubRepository(testUserID)
+			service := NewService(repo)
+			handler := NewHandler(service)
+
+			rawPayload := `{}`
+			req := newPUTUserHTTPRequest(testUserID, rawPayload)
+			res := httptest.NewRecorder()
+
+			handler.ServeHTTP(res, req)
+
+			var got api.ErrorResponse
+
+			assert.Equal(t, res.Code, http.StatusUnprocessableEntity, "did not get correct response status code")
+			assert.Equal(t, res.Header().Get("content-type"), "application/json", "wrong content type format")
+			assert.JSONDecode(t, res.Body, &got)
+			assert.Equal(t, got.Message, api.MsgInvalidReqPayload, "wrong 'Message' field in api.ErrorResponse")
+			nameMsg, hasName := got.Errors[keyName]
+			assert.Equal(t, hasName, true, "expected 'name' key in api.ErrorResponse.Errors map")
+			assert.Equal(t, nameMsg, MsgNameRequired, "wrong error message for 'name' field in api.ErrorResponse.Errors")
+		})
+	})
+}
+
+func TestDELETE(t *testing.T) {
+	testUserID := "an142-sbfdau-adufba-audbfuda"
+	t.Run("succesfully delete user", func(t *testing.T) {
+		repo := newStubRepository(testUserID)
+		service := NewService(repo)
+		handler := NewHandler(service)
+
+		req := newDELETEUserHTTPRequest(testUserID)
+		res := httptest.NewRecorder()
+
+		handler.ServeHTTP(res, req)
+
+		assert.Equal(t, res.Code, http.StatusNoContent, "did not get correct response status code")
+		assert.Equal(t, res.Header().Get("content-type"), "application/json", "wrong content type format")
+		expected := repo.users[testUserID]
+		assert.Equal(t, expected, User{}, "user was not properly deleted")
+	})
+
+	t.Run("receive error when delete non-existent user", func(t *testing.T) {
+		repo := &StubRepository{make(map[string]User)}
+		service := NewService(repo)
+		handler := NewHandler(service)
+
+		req := newDELETEUserHTTPRequest(testUserID)
+		res := httptest.NewRecorder()
+
+		handler.ServeHTTP(res, req)
+
+		var got api.ErrorResponse
+
+		assert.Equal(t, res.Code, http.StatusNotFound, "did not get correct response status code")
+		assert.Equal(t, res.Header().Get("content-type"), "application/json", "wrong content type format")
+		assert.JSONDecode(t, res.Body, &got)
+		assert.Equal(t, got.Message, MsgNotFound, "did not get correct Message in ErrorResponse")
+	})
+}
+
 func newGETUserHTTPRequest(userID string) *http.Request {
 	path := fmt.Sprintf("/users/%s", userID)
 	req := httptest.NewRequest(http.MethodGet, path, nil)
@@ -192,6 +318,20 @@ func newGETUserHTTPRequest(userID string) *http.Request {
 
 func newPOSTUserHTTPRequest(rawPayload string) *http.Request {
 	req := httptest.NewRequest(http.MethodPost, "/users", strings.NewReader(rawPayload))
+	return req
+}
+
+func newPUTUserHTTPRequest(userID, rawPayload string) *http.Request {
+	path := fmt.Sprintf("/users/%s", userID)
+	req := httptest.NewRequest(http.MethodPut, path, strings.NewReader(rawPayload))
+	req.SetPathValue("id", userID)
+	return req
+}
+
+func newDELETEUserHTTPRequest(userID string) *http.Request {
+	path := fmt.Sprintf("/users/%s", userID)
+	req := httptest.NewRequest(http.MethodDelete, path, nil)
+	req.SetPathValue("id", userID)
 	return req
 }
 
