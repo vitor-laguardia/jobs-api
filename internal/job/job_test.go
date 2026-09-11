@@ -18,27 +18,25 @@ type StubJobRepository struct {
 	jobs map[string]*Job
 }
 
-func (s *StubJobRepository) GetByID(jobID string) *Job {
+func (s *StubJobRepository) GetByID(jobID string) (*Job, error) {
 	job, ok := s.jobs[jobID]
 
 	if !ok {
-		return nil
+		return nil, ErrJobNotFound
 	}
 
 	jobCopy := *job
-	return &jobCopy
+	return &jobCopy, nil
 }
 
-func (s *StubJobRepository) Create(job *Job) {
+func (s *StubJobRepository) Create(job *Job) error {
 	s.jobs[job.ID] = job
+	return nil
 }
 
-func (s *StubJobRepository) Update(job *Job) *Job {
-	if _, exists := s.jobs[job.ID]; !exists {
-		return nil
-	}
+func (s *StubJobRepository) Update(job *Job) (*Job, error) {
 	s.jobs[job.ID] = job
-	return job
+	return job, nil
 }
 
 func (s *StubJobRepository) Delete(jobID string) error {

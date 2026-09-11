@@ -27,14 +27,14 @@ func (sr *StubRepository) GetByID(userID string) (User, error) {
 	return user, nil
 }
 
-func (sr *StubRepository) Create(user User) User {
+func (sr *StubRepository) Create(user User) (User, error) {
 	sr.users[user.ID] = user
-	return user
+	return user, nil
 }
 
-func (sr *StubRepository) Update(user User) User {
+func (sr *StubRepository) Update(user User) (User, error) {
 	sr.users[user.ID] = user
-	return user
+	return user, nil
 }
 
 func (sr *StubRepository) Delete(userID string) error {

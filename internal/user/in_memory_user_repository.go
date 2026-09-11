@@ -18,7 +18,7 @@ func (ur *UserRepository) GetByID(userID string) (User, error) {
 	return user, nil
 }
 
-func (ur *UserRepository) Create(user User) User {
+func (ur *UserRepository) Create(user User) (User, error) {
 	ur.users[user.ID] = user
-	return user
+	return user, nil
 }

@@ -55,7 +55,15 @@ func (h *Handler) postJob(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	nj := h.service.Create(jobReq)
+	nj, err := h.service.Create(jobReq)
+	if err != nil {
+		// TODO: tests dont cover this scenario yet, because in memmory repo cant fail
+		errRes := api.NewErrorResponse(err.Error(), http.StatusBadRequest, nil)
+		w.WriteHeader(errRes.Status)
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(errRes)
+		return
+	}
 
 	w.WriteHeader(http.StatusCreated)
 	w.Header().Set("Content-Type", "application/json")
