@@ -54,8 +54,15 @@ func (h *Handler) postUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	newUser := h.service.Create(userInput)
-
+	newUser, serviceErr := h.service.Create(userInput)
+	if serviceErr != nil {
+		//TODO: tests dont cover yet because in memory repo dont have erros
+		errRes := api.NewErrorResponse(serviceErr.Error(), http.StatusNotFound, nil)
+		w.WriteHeader(errRes.Status)
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(errRes)
+		return
+	}
 	w.WriteHeader(http.StatusCreated)
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(newUser)
