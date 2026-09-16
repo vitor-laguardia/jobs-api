@@ -22,3 +22,16 @@ func (ur *UserRepository) Create(user User) (User, error) {
 	ur.users[user.ID] = user
 	return user, nil
 }
+
+func (ur *UserRepository) Update(user User) (User, error) {
+	ur.users[user.ID] = user
+	return user, nil
+}
+
+func (ur *UserRepository) Delete(userID string) error {
+	if _, exists := ur.users[userID]; !exists {
+		return ErrNotFound
+	}
+	delete(ur.users, userID)
+	return nil
+}
