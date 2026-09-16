@@ -2,7 +2,10 @@ package user
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
+
+	"github.com/jackc/pgx/v5/pgconn"
 )
 
 type PostgresRepository struct {
@@ -21,15 +24,15 @@ RETURNING id, name, email, created_at
 `
 	row := pr.DB.QueryRow(query, user.ID, user.Name, user.Email, user.CreatedAt)
 	fmt.Println(row)
-	row.Scan(&user.ID, &user.Name, &user.Email, &user.CreatedAt)
+	err := row.Scan(&user.ID, &user.Name, &user.Email, &user.CreatedAt)
+	if err != nil {
+		fmt.Printf("error type: %T value %#v\n", err, err)
+		if isUniqueViolation(err) {
+			return User{}, ErrDuplicateEmail
+		}
 
-	//	if err == sql.ErrNoRows {
-	//		http.NotFound(w, r)
-	//		return
-	//	}
-	//	if err != nil {
-	//		return fmt.Errorf("userRepository.Create %w", err)
-	//	}
+		return User{}, fmt.Errorf("userRepository.Create: %w", err)
+	}
 	return user, nil
 }
 
@@ -43,4 +46,9 @@ func (pr *PostgresRepository) Delete(userID string) error {
 
 func (pr *PostgresRepository) GetByID(userID string) (User, error) {
 	return User{}, nil
+}
+
+func isUniqueViolation(err error) bool {
+	var pgErr *pgconn.PgError
+	return errors.As(err, &pgErr) && pgErr.Code == "23505"
 }

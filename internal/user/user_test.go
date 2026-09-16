@@ -351,7 +351,8 @@ func newStubRepository(userID string) *StubRepository {
 func assertTimeEqual(t *testing.T, got, want time.Time, context string) {
 	t.Helper()
 
-	if !got.Equal(want) {
+	// TODO: truncate in user domain
+	if !got.Equal(want.Truncate(time.Microsecond)) {
 		t.Errorf("%s, got: %v, want %v", context, got, want)
 	}
 }

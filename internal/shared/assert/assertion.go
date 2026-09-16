@@ -3,6 +3,7 @@ package assert
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"testing"
 	"time"
 )
@@ -44,5 +45,12 @@ func TimeAfter(t *testing.T, got, want time.Time, context string) {
 
 	if !got.After(want) {
 		t.Errorf("%s: got %v, want %v", context, got, want)
+	}
+}
+
+func ErrorIs(t *testing.T, got, want error) {
+	t.Helper()
+	if !errors.Is(got, want) {
+		t.Errorf("got: %v; want: %v", got, want)
 	}
 }
