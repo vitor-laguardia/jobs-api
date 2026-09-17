@@ -25,7 +25,6 @@ func (rc RepositoryContract) Test(t *testing.T) {
 			assert.Equal(t, got.Email, expected.Email, "did not get correct user Email in repository response")
 			assert.TimeEqual(t, got.CreatedAt, expected.CreatedAt, "did not get correct user CreatedAt in repository response")
 		})
-
 		t.Run("return error if create user with duplicate email", func(t *testing.T) {
 			repo := rc.NewRepository()
 			expected := NewUser("charles", "charles@gmail.com")
@@ -38,6 +37,7 @@ func (rc RepositoryContract) Test(t *testing.T) {
 			assert.ErrorIs(t, err, ErrDuplicateEmail)
 		})
 	})
+
 	t.Run("repository.GetByID user tests", func(t *testing.T) {
 		t.Run("sucessfuly get user", func(t *testing.T) {
 			repo := rc.NewRepository()

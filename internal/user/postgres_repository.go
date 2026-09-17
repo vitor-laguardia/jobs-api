@@ -35,7 +35,18 @@ RETURNING id, name, email, created_at
 }
 
 func (pr *PostgresRepository) Update(user User) (User, error) {
-	return User{}, nil
+	query := `
+UPDATE users 
+SET name = $1
+WHERE id = $2
+RETURNING id, name, email, created_at
+`
+	row := pr.DB.QueryRow(query, user.Name, user.ID)
+	if err := row.Scan(&user.ID, &user.Name, &user.Email, &user.CreatedAt); err != nil {
+		return User{}, fmt.Errorf("userRepository.Update: %w", err)
+	}
+
+	return user, nil
 }
 
 func (pr *PostgresRepository) Delete(userID string) error {
