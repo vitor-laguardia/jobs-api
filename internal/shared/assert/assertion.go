@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"reflect"
 	"testing"
 	"time"
 )
@@ -48,9 +49,37 @@ func TimeAfter(t *testing.T, got, want time.Time, context string) {
 	}
 }
 
+func TimeEqual(t *testing.T, got, want time.Time, context string) {
+	t.Helper()
+
+	// TODO: truncate in user domain
+	if !got.Truncate(time.Microsecond).Equal(want.Truncate(time.Microsecond)) {
+		t.Errorf("%s, got: %v, want %v", context, got, want)
+	}
+}
+
+func Nil(t *testing.T, got any) {
+	t.Helper()
+	if !isNil(got) {
+		t.Errorf("got: %v; want: nil", got)
+	}
+}
+
 func ErrorIs(t *testing.T, got, want error) {
 	t.Helper()
 	if !errors.Is(got, want) {
 		t.Errorf("got: %v; want: %v", got, want)
 	}
+}
+
+func isNil(v any) bool {
+	if v == nil {
+		return true
+	}
+	rv := reflect.ValueOf(v)
+	switch rv.Kind() {
+	case reflect.Chan, reflect.Func, reflect.Interface, reflect.Map, reflect.Pointer, reflect.Slice, reflect.UnsafePointer:
+		return rv.IsNil()
+	}
+	return false
 }

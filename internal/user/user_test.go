@@ -66,7 +66,7 @@ func TestGET(t *testing.T) {
 		assert.Equal(t, got.Name, expected.Name, "did not get correct user Name")
 		assert.Equal(t, got.ID, expected.ID, "did not get correct userID")
 		assert.Equal(t, got.Email, expected.Email, "did not get correct user Email")
-		assertTimeEqual(t, got.CreatedAt, expected.CreatedAt, "did not get correct user CreatedAt")
+		assert.TimeEqual(t, got.CreatedAt, expected.CreatedAt, "did not get correct user CreatedAt")
 	})
 
 	t.Run("return error when user not found", func(t *testing.T) {
@@ -117,7 +117,7 @@ func TestPOST(t *testing.T) {
 			assert.Equal(t, got.Name, userStub.Name, "user Name was not correctly persisted in repository")
 			assert.Equal(t, got.ID, userStub.ID, "user ID was not correctly persisted in repository")
 			assert.Equal(t, got.Email, userStub.Email, "user Email was not correctly persisted in repository")
-			assertTimeEqual(t, got.CreatedAt, userStub.CreatedAt, "user CreatedAt was not correctly persisted in repository")
+			assert.TimeEqual(t, got.CreatedAt, userStub.CreatedAt, "user CreatedAt was not correctly persisted in repository")
 		})
 	})
 
@@ -345,15 +345,6 @@ func newStubRepository(userID string) *StubRepository {
 				CreatedAt: time.Now(),
 			},
 		},
-	}
-}
-
-func assertTimeEqual(t *testing.T, got, want time.Time, context string) {
-	t.Helper()
-
-	// TODO: truncate in user domain
-	if !got.Equal(want.Truncate(time.Microsecond)) {
-		t.Errorf("%s, got: %v, want %v", context, got, want)
 	}
 }
 
