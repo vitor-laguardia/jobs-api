@@ -1,6 +1,7 @@
 package job
 
 import (
+	"errors"
 	"time"
 
 	"github.com/google/uuid"
@@ -33,6 +34,18 @@ type Job struct {
 	CreatedAt   time.Time   `json:"created_at"`
 	UpdatedAt   time.Time   `json:"updated_at"`
 }
+
+const (
+	MsgInvalidStatusTransition = "invalid job status transition"
+	MsgJobNotFound             = "job not found"
+	MsgUserNotFound            = "user not found"
+)
+
+var (
+	ErrJobNotFound         = errors.New(MsgJobNotFound)
+	ErrJobStatusTransition = errors.New(MsgInvalidStatusTransition)
+	ErrUserNotFound        = errors.New(MsgUserNotFound)
+)
 
 func NewJob(title, description string, priority JobPriority, userID string) Job {
 	return Job{

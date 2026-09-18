@@ -1,23 +1,12 @@
 package job
 
 import (
-	"errors"
 	"time"
-)
-
-const (
-	MsgInvalidStatusTransition = "invalid job status transition"
-	MsgJobNotFound             = "job not found"
-)
-
-var (
-	ErrJobNotFound         = errors.New(MsgJobNotFound)
-	ErrJobStatusTransition = errors.New(MsgInvalidStatusTransition)
 )
 
 type Repository interface {
 	GetByID(id string) (*Job, error)
-	Create(job *Job) error
+	Create(job *Job) (int, error)
 	Update(job *Job) (*Job, error)
 	Delete(jobID string) error
 }
@@ -41,7 +30,7 @@ func (s *Service) GetByID(id string) (*Job, error) {
 
 func (s *Service) Create(jobReq CreateJobRequest) (*Job, error) {
 	nj := NewJob(jobReq.Title, jobReq.Description, JobPriority(jobReq.Priority), jobReq.UserID)
-	err := s.repo.Create(&nj)
+	_, err := s.repo.Create(&nj)
 	if err != nil {
 		return nil, err
 	}

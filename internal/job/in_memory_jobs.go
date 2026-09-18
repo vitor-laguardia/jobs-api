@@ -15,9 +15,9 @@ func (jr *JobRepository) GetByID(id string) (*Job, error) {
 	return &jobCopy, nil
 }
 
-func (jr *JobRepository) Create(job *Job) error {
+func (jr *JobRepository) Create(job *Job) (int, error) {
 	jr.jobs[job.ID] = job
-	return nil
+	return 0, nil
 }
 
 func (jr *JobRepository) Update(job *Job) (*Job, error) {
