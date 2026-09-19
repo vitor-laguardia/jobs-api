@@ -55,8 +55,8 @@ func NewJob(title, description string, priority JobPriority, userID string) Job 
 		Priority:    priority,
 		Status:      JobStatusPending,
 		UserID:      userID,
-		CreatedAt:   time.Now(),
-		UpdatedAt:   time.Now(),
+		CreatedAt:   time.Now().UTC().Truncate(time.Microsecond),
+		UpdatedAt:   time.Now().UTC().Truncate(time.Microsecond),
 	}
 }
 

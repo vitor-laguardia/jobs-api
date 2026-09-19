@@ -9,10 +9,10 @@ import (
 	"time"
 )
 
-func Equal[T comparable](t *testing.T, got, want T, context string) {
+func Equal[T any](t *testing.T, got, want T, context string) {
 	t.Helper()
 
-	if got != want {
+	if !isEqual(got, want) {
 		t.Errorf("%s: got: %v; want: %v", context, got, want)
 	}
 }
@@ -82,4 +82,21 @@ func isNil(v any) bool {
 		return rv.IsNil()
 	}
 	return false
+}
+
+func isEqual[T any](got, want T) bool {
+	if isNil(got) && isNil(want) {
+		return true
+	}
+
+	if equalable, ok := any(got).(interface{ Equal(T) bool }); ok {
+		return equalable.Equal(want)
+	}
+
+	t := reflect.TypeOf(got)
+	if t != nil && t.Comparable() {
+		return any(got) == any(want)
+	}
+
+	return reflect.DeepEqual(got, want)
 }
