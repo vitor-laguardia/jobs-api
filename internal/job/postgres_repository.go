@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/jackc/pgerrcode"
 	"github.com/jackc/pgx/v5/pgconn"
 )
 
@@ -15,6 +16,13 @@ type PostgresRepository struct {
 func NewPostgresRepository(DB *sql.DB) *PostgresRepository {
 	return &PostgresRepository{DB: DB}
 }
+
+const (
+	constraintJobsPKey     = "jobs_pkey"
+	constraintJobsFK       = "fk_jobs_users"
+	constraintJobsPriority = "jobs_priority_check"
+	constraintJobsStatus   = "jobs_status_check"
+)
 
 func (pr *PostgresRepository) Create(job *Job) (int, error) {
 	query := `
@@ -118,7 +126,32 @@ WHERE id = $1
 	return nil
 }
 
-func isFKViolation(err error) bool {
+func isPgError(err error, code string, constraint string) bool {
 	var pgError *pgconn.PgError
-	return errors.As(err, &pgError) && pgError.Code == "23503"
+	if !errors.As(err, &pgError) {
+		return false
+	}
+	if pgError.Code != code {
+		return false
+	}
+	if constraint != "" && pgError.ConstraintName != constraint {
+		return false
+	}
+	return true
+}
+
+func isJobUniqueConstraintViolation(err error) bool {
+	return isPgError(err, pgerrcode.UniqueViolation, constraintJobsPKey)
+}
+
+func isFKViolation(err error) bool {
+	return isPgError(err, pgerrcode.ForeignKeyViolation, constraintJobsFK)
+}
+
+func isPriorityConstraintViolation(err error) bool {
+	return isPgError(err, pgerrcode.CheckViolation, constraintJobsPriority)
+}
+
+func isStatusConstraintViolation(err error) bool {
+	return isPgError(err, pgerrcode.CheckViolation, constraintJobsStatus)
 }

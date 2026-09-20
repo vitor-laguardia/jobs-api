@@ -39,12 +39,18 @@ const (
 	MsgInvalidStatusTransition = "invalid job status transition"
 	MsgJobNotFound             = "job not found"
 	MsgUserNotFound            = "user not found"
+	MsgPriorityOutOfRange      = "priority must be in range [1-3]"
+	MsgInvalidStatus           = "invalid status value"
+	MsgJobAlreadyExists        = "job already exists"
 )
 
 var (
 	ErrJobNotFound         = errors.New(MsgJobNotFound)
 	ErrJobStatusTransition = errors.New(MsgInvalidStatusTransition)
 	ErrUserNotFound        = errors.New(MsgUserNotFound)
+	ErrPriorityOutOfRange  = errors.New(MsgPriorityOutOfRange)
+	ErrInvalidStatus       = errors.New(MsgInvalidStatus)
+	ErrJobAlreadyExists    = errors.New(MsgJobAlreadyExists)
 )
 
 func NewJob(title, description string, priority JobPriority, userID string) Job {

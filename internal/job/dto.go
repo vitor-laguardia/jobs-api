@@ -1,16 +1,14 @@
 package job
 
 const (
-	MsgTitleRequired      = "title is required"
-	KeyTitle              = "title"
-	MsgUserIDRequired     = "userId is required"
-	KeyUserID             = "userId"
-	MsgPriorityOutOfRange = "priority must be in range [1-3]"
-	KeyPriority           = "priority"
-	KeyBody               = "body"
-	MsgEmptyJSONBody      = "request body must contain at least one field to update"
-	KeyStatus             = "status"
-	MsgInvalidStatus      = "invalid status value"
+	MsgTitleRequired  = "title is required"
+	KeyTitle          = "title"
+	MsgUserIDRequired = "userId is required"
+	KeyUserID         = "userId"
+	KeyPriority       = "priority"
+	KeyBody           = "body"
+	MsgEmptyJSONBody  = "request body must contain at least one field to update"
+	KeyStatus         = "status"
 )
 
 type CreateJobRequest struct {
