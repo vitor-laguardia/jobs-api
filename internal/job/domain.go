@@ -66,6 +66,13 @@ func NewJob(title, description string, priority JobPriority, userID string) Job 
 	}
 }
 
+func (s JobPriority) IsValid() bool {
+	if int(s) <= 3 && int(s) >= 0 {
+		return true
+	}
+	return false
+}
+
 func (s JobStatus) IsValid() bool {
 	switch s {
 	case JobStatusPending, JobStatusRunning, JobStatusDone, JobStatusFailed:

@@ -18,13 +18,13 @@ func NewServer(jobHandler *job.Handler, userHandler *user.Handler) *http.ServeMu
 }
 
 func main() {
-	jobRepo := job.NewInMemoryRepository()
-	jobService := job.NewService(jobRepo)
-	jobHandler := job.NewHandler(jobService)
-
 	userRepo := user.NewInMemoryRepository()
 	userService := user.NewService(userRepo)
 	userHandler := user.NewHandler(userService)
+
+	jobRepo := job.NewInMemoryRepository(userRepo)
+	jobService := job.NewService(jobRepo)
+	jobHandler := job.NewHandler(jobService)
 
 	server := NewServer(jobHandler, userHandler)
 

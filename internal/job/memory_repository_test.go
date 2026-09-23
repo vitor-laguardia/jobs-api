@@ -9,7 +9,8 @@ import (
 func TestMemoryRepository(t *testing.T) {
 	RepositoryContract{
 		NewRepositories: func() (Repository, user.Repository) {
-			return NewInMemoryRepository(), user.NewInMemoryRepository()
+			userRepo := user.NewInMemoryRepository()
+			return NewInMemoryRepository(userRepo), userRepo
 		},
 	}.Test(t)
 }
