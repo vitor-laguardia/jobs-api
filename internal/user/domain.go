@@ -8,11 +8,13 @@ import (
 )
 
 const (
-	MsgNotFound = "user not found"
+	MsgNotFound       = "user not found"
+	MsgDuplicateEmail = "email already in use"
 )
 
 var (
-	ErrNotFound = errors.New(MsgNotFound)
+	ErrNotFound       = errors.New(MsgNotFound)
+	ErrDuplicateEmail = errors.New(MsgDuplicateEmail)
 )
 
 type User struct {

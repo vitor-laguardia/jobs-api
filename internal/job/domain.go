@@ -1,6 +1,7 @@
 package job
 
 import (
+	"errors"
 	"time"
 
 	"github.com/google/uuid"
@@ -34,6 +35,24 @@ type Job struct {
 	UpdatedAt   time.Time   `json:"updated_at"`
 }
 
+const (
+	MsgInvalidStatusTransition = "invalid job status transition"
+	MsgJobNotFound             = "job not found"
+	MsgUserNotFound            = "user not found"
+	MsgPriorityOutOfRange      = "priority must be in range [1-3]"
+	MsgInvalidStatus           = "invalid status value"
+	MsgJobAlreadyExists        = "job already exists"
+)
+
+var (
+	ErrJobNotFound         = errors.New(MsgJobNotFound)
+	ErrJobStatusTransition = errors.New(MsgInvalidStatusTransition)
+	ErrUserNotFound        = errors.New(MsgUserNotFound)
+	ErrPriorityOutOfRange  = errors.New(MsgPriorityOutOfRange)
+	ErrInvalidStatus       = errors.New(MsgInvalidStatus)
+	ErrJobAlreadyExists    = errors.New(MsgJobAlreadyExists)
+)
+
 func NewJob(title, description string, priority JobPriority, userID string) Job {
 	return Job{
 		ID:          uuid.New().String(),
@@ -42,9 +61,16 @@ func NewJob(title, description string, priority JobPriority, userID string) Job 
 		Priority:    priority,
 		Status:      JobStatusPending,
 		UserID:      userID,
-		CreatedAt:   time.Now(),
-		UpdatedAt:   time.Now(),
+		CreatedAt:   time.Now().UTC().Truncate(time.Microsecond),
+		UpdatedAt:   time.Now().UTC().Truncate(time.Microsecond),
 	}
+}
+
+func (s JobPriority) IsValid() bool {
+	if int(s) <= 3 && int(s) >= 0 {
+		return true
+	}
+	return false
 }
 
 func (s JobStatus) IsValid() bool {

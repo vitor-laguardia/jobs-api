@@ -29,9 +29,9 @@ func (s *StubJobRepository) GetByID(jobID string) (*Job, error) {
 	return &jobCopy, nil
 }
 
-func (s *StubJobRepository) Create(job *Job) error {
+func (s *StubJobRepository) Create(job *Job) (int, error) {
 	s.jobs[job.ID] = job
-	return nil
+	return 0, nil
 }
 
 func (s *StubJobRepository) Update(job *Job) (*Job, error) {

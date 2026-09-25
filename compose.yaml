@@ -1,0 +1,15 @@
+services: 
+  db:
+    image: postgres:latest
+    container_name: jobs-postgres
+    environment:
+      POSTGRES_PASSWORD: gojobs
+      POSTGRES_DB: jobs
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - ./init-db:/docker-entrypoint-initdb.d
+      - postgres_data:/var/lib/postgresql
+
+volumes:
+  postgres_data:
